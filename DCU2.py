@@ -1,6 +1,6 @@
 #DCU LOGIC
 #USED ChatGPT to convert Code from C to Python
-
+#Code is only Good For Demo #3
 
 import time
 import random
