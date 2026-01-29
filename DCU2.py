@@ -19,9 +19,9 @@ HIGH_THRESHOLD = 6.0
 
 # GPIO setup
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(LED_PIN, GPIO.OUT)
+GPIO.setup(PUMP_ON_PIN, GPIO.OUT)
 
-# Seed random number generator (similar intent to time_us_32)
+# Seed random number generator 
 random.seed(time.time())
 
 print("Starting program... (Ctrl+C to stop)")
