@@ -15,7 +15,7 @@ switch_state = None
 try:
     while True:
         # value = 1 when open, 0 when pressed
-        state = not in_pin.value  # invert so pressed = True
+        state = in_pin.value 
 
         if state != switch_state:
             print("ON" if state else "OFF")
