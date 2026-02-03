@@ -17,7 +17,7 @@ try:
         # value = 1 when open, 0 when pressed
         state = not in_pin.value  # invert so pressed = True
 
-        if state != last:
+        if state != switch_state:
             print("ON" if state else "OFF")
             switch_state = state
 
