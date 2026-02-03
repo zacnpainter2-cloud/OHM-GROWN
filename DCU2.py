@@ -6,14 +6,16 @@ import time
 import random
 import RPi.GPIO as GPIO
 
-# GPIO Pin 9 (BCM numbering)
+# GPIO Pin 5 (BCM numbering)
 PUMP_ON_PIN = 5
 
-# Dummy Measurement generation range
+# Dummy Measurement generation range 
+# Measurement Can only generate withing 5-7.5
 MIN_VALUE = 5.0
 MAX_VALUE = 7.5
 
 # Threshold range
+# Range that will affect the dosing sequence
 LOW_THRESHOLD = 5.0
 HIGH_THRESHOLD = 6.0
 
@@ -24,6 +26,7 @@ GPIO.setup(PUMP_ON_PIN, GPIO.OUT)
 # Seed random number generator 
 random.seed(time.time())
 
+#Program Starting, Ctrl+C to Stop the Loop. 
 print("Starting program... (Ctrl+C to stop)")
 
 try:
@@ -37,21 +40,21 @@ try:
         out_of_range = (measurement < LOW_THRESHOLD or measurement > HIGH_THRESHOLD)   #Out of Range Calculation
 
         if out_of_range:
-            print(" → OUTSIDE RANGE! 'Dosing' for 5 seconds. (LED ON)")
+            print(" → OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
 
-            GPIO.output(LED_PIN, GPIO.HIGH)  # Pump ON
+            GPIO.output(PUMP_ON_PIN, GPIO.LOW)  # Pump ON
             time.sleep(5)                   # Dosing for 5 seconds
 
-            GPIO.output(LED_PIN, GPIO.LOW)   # Pump OFF
-            print("Waiting 5 seconds before next reading... (Circulation)")
-            time.sleep(5)                   # Circulation delay
+            GPIO.output(PUMP_ON_PIN, GPIO.HIGH)   # Pump OFF
+            print("Waiting 10 seconds before next reading... (Circulation)")
+            time.sleep(10)                   # Circulation delay (10 Seconds)
 
         else:
-            print(" → Inside range. LED OFF.")
+            print(" → Inside range. PUMP OFF.")
 
-            GPIO.output(LED_PIN, GPIO.LOW)   # LED OFF
-            print("Waiting 10 seconds before next reading...")
-            time.sleep(10)                 # Wait before next reading
+            GPIO.output(PUMP_ON_PIN, GPIO.HIGH)   # LED OFF
+            print("Waiting 15 seconds before taking next reading...")
+            time.sleep(15)                 # Wait before next reading
 
 except KeyboardInterrupt:
     print("\nProgram stopped by user.")
