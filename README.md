@@ -1,2 +1,0 @@
-Deign
-LoRa Network
