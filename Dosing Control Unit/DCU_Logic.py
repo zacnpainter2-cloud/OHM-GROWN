@@ -23,8 +23,11 @@ HIGH_THRESHOLD = 6.0
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(PUMP_ON_PIN, GPIO.OUT)
 
-# Seed random number generator 
+# random number generator 
 random.seed(time.time())
+#pH_number = input("Enter desired pH value:")
+#EC_number = input("Enter desired EC value:")
+
 
 #Program Starting, Ctrl+C to Stop the Loop. 
 print("Starting program... (Ctrl+C to stop)")
