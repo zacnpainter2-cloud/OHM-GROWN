@@ -41,10 +41,7 @@ GPIO.setup(EC_PUMP_ON_PIN, GPIO.OUT)
 GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)
 GPIO.output(EC_PUMP_ON_PIN, GPIO.HIGH)
 
-# random number generator 
-random.seed(time.time())
-#PH_measurement = input("Enter desired pH value:")
-#EC_measurement = input("Enter desired EC value:")
+
 #Program Starting, Ctrl+C to Stop the Loop. 
 
 
@@ -57,8 +54,10 @@ try:
         print(f"EC Upper Threshold: {EC_HIGH_THRESHOLD:.2f}")
         print(f"EC Lower Threshold: {EC_LOW_THRESHOLD:.2f}")
 
-        PH_measurement = random.uniform(PH_MIN_VALUE, PH_MAX_VALUE)   #Random Number Generation
-        print(f"Random Measurement: {PH_measurement:.2f}")      #Random Number Display
+        PH_measurement = input("Enter desired pH value:")
+        EC_measurement = input("Enter desired EC value:")
+        print(f"PH measurement: {PH_measurement:.2f}")      #PH Measurement Display
+        print(f"EC measurement: {EC_measurement:.2f}")      #EC Measurement Display
 
         PH_out_of_range = (PH_measurement < PH_LOW_THRESHOLD or PH_measurement > PH_HIGH_THRESHOLD)   # PH Out of Range Calculation
         EC_out_of_range = (EC_measurement < EC_LOW_THRESHOLD or EC_measurement > EC_HIGH_THRESHOLD)   # EC Out of Range Calculation
