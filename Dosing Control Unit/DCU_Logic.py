@@ -68,7 +68,7 @@ try:
             GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)   # PH Pump OFF
             print("Waiting 15 seconds before taking next reading for Circulation")
             time.sleep(15)   # Wait before next reading (Circulation Timer)
-        elif: EC_out_of_range:
+        elif EC_out_of_range:
             print(" → EC OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
             GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)  # EC Pump ON
             time.sleep(5)    # Dosing for 5 seconds
