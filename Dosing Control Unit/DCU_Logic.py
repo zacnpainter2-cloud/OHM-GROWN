@@ -54,8 +54,8 @@ try:
         print(f"EC Upper Threshold: {EC_HIGH_THRESHOLD:.2f}")
         print(f"EC Lower Threshold: {EC_LOW_THRESHOLD:.2f}")
 
-        PH_measurement = input("Enter desired pH value:")
-        EC_measurement = input("Enter desired EC value:")
+        PH_measurement = int(input("Enter desired pH value:"))
+        EC_measurement = int(input("Enter desired EC value:"))
         print(f"PH measurement: {PH_measurement:.2f}")      #PH Measurement Display
         print(f"EC measurement: {EC_measurement:.2f}")      #EC Measurement Display
 
