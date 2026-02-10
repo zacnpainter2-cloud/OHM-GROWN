@@ -36,8 +36,8 @@ GPIO.setup(PH_PUMP_ON_PIN, GPIO.OUT)
 GPIO.setup(EC_PUMP_ON_PIN, GPIO.OUT)
 
 #INITIAL GPIO PIN CONDITIONS
-GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)
-GPIO.output(EC_PUMP_ON_PIN, GPIO.HIGH)
+GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)
+GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
 
 
             #=====================================================================================
@@ -74,13 +74,13 @@ try:
         #-------pH is Checked and Dosed(if needed) First-------#
         if PH_out_of_range:   
             print(" → PH OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
-            GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)  # PH Pump ON
+            GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)  # PH Pump ON
             PH_Status=1                               # ==================================================================================
             EC_Status=0                               # ======================= Pump Status Bits set & ===================================
             print(f"PH Pump Status: {PH_Status:f}")   # =======================    Bits are Printed    ===================================
             print(f"EC Pump Status: {EC_Status:f}")   # ==================================================================================
             time.sleep(5)                   # Dosing for 5 seconds
-            GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)   # PH Pump OFF
+            GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)   # PH Pump OFF
             PH_Status=0
             print("Waiting 15 seconds before taking next reading for Circulation")
             time.sleep(15)   # Wait before next reading (Circulation Timer)
@@ -89,13 +89,13 @@ try:
         elif EC_out_of_range:
             print(" → PH INSIDE RANGE! MOVING TO EC")
             print(" → EC OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
-            GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)  # EC Pump ON
+            GPIO.output(EC_PUMP_ON_PIN, GPIO.HIGH)  # EC Pump ON
             PH_Status=0                               # ==================================================================================
             EC_Status=1                               # ======================= Pump Status Bits set & ===================================
             print(f"PH Pump Status: {PH_Status:f}")   # =======================    Bits are Printed    =================================== 
             print(f"EC Pump Status: {EC_Status:f}")   # ==================================================================================
             time.sleep(5)    # Dosing for 5 seconds
-            GPIO.output(EC_PUMP_ON_PIN, GPIO.HIGH)
+            GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
             EC_Status=0
             print("Waiting 15 seconds before taking next reading for Circulation")
             time.sleep(15)   # Wait before next reading (Circulation Timer)
@@ -103,8 +103,8 @@ try:
         #-------If Both Measurements are good, Code will break for a longer amount of time-------#
         else:
             print(" → Inside range. PUMP OFF.")
-            GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)   # PH Pump OFF
-            GPIO.output(EC_PUMP_ON_PIN, GPIO.HIGH)   # EC Pump OFF
+            GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)   # PH Pump OFF
+            GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)   # EC Pump OFF
             PH_Status=0                               # ==================================================================================
             EC_Status=0                               # ======================= Pump Status Bits set & ===================================
             print(f"PH Pump Status: {PH_Status:f}")   # =======================    Bits are Printed    ===================================
@@ -116,6 +116,7 @@ except KeyboardInterrupt:
     print("\nProgram stopped by user.")
 
 finally:
-    GPIO.output(LED_PIN, GPIO.LOW)
+    GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)
+    GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
     GPIO.cleanup()
     print("GPIO cleaned up.")
