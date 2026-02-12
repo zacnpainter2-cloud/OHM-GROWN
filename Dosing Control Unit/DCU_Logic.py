@@ -40,6 +40,21 @@ GPIO.setup(EC_PUMP_ON_PIN, GPIO.OUT)
 GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)
 GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
 
+#-------pH Range Functions-------#
+def PH_NOT_at_Setpoint():
+            return PH_measurement > PH_Setpoint
+def PH_out_of_range():
+            return  PH_measurement > PH_HIGH_THRESHOLD
+PH_Above_Setpoint = PH_NOT_at_Setpoint()
+PH_Above_MAX = PH_out_of_range()
+                
+        #-------EC Range Functions-------#
+def EC_NOT_at_Setpoint():
+            return EC_measurement < EC_Setpoint
+def EC_out_of_range():
+            return  EC_measurement < EC_LOW_THRESHOLD
+EC_Below_Setpoint = EC_NOT_at_Setpoint()
+EC_Below_MIN = EC_out_of_range()
 
             #=====================================================================================
             #================================ PROGRAM STARTING ===================================
@@ -64,21 +79,6 @@ try:
         print(f"PH measurement: {PH_measurement:.2f}")      
         print(f"EC measurement: {EC_measurement:.2f}")      
 
-        #-------pH Range Functions-------#
-        def PH_NOT_at_Setpoint():
-                    return PH_measurement > PH_Setpoint:
-        def PH_out_of_range():
-                    return  PH_measurement > PH_HIGH_THRESHOLD:
-        PH_Above_Setpoint = PH_NOT_at_Setpoint()
-        PH_Above_MAX = PH_out_of_range()
-                
-        #-------EC Range Functions-------#
-        def EC_NOT_at_Setpoint():
-                    return EC_measurement < EC_Setpoint:
-        def EC_out_of_range():
-                    return  EC_measurement > EC_LOW_THRESHOLD:
-        EC_Below_Setpoint = EC_NOT_at_Setpoint()
-        EC_Below_MIN = EC_out_of_range()
                 
             #=====================================================================================
             #================================ LOGIC STARTS =======================================
@@ -87,7 +87,7 @@ try:
         #-------pH is Checked and Dosed(if needed) First-------#
         #-------Dosed back down to setpoint not to the range-------#
         if PH_Above_MAX:
-            while (PH_Above_Setpoint)
+            while (PH_Above_Setpoint):
                     print(" → PH OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
                     GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)  # PH Pump ON    #dms.setphpump(1)
                     PH_Status=1                               # ==================================================================================
@@ -108,7 +108,7 @@ try:
         #-------EC is Checked Next Dosed(if needed)-------#
         #-------Dosed back up to setpoint not to the range-------#
         elif EC_Below_MIN:
-            while (EC_Below_Setpoint)
+            while (EC_Below_Setpoint):
                     print(" → PH INSIDE RANGE! MOVING TO EC")
                     print(" → EC OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
                     GPIO.output(EC_PUMP_ON_PIN, GPIO.HIGH)  # EC Pump ON
