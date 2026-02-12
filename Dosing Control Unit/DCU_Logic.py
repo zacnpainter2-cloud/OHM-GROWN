@@ -14,7 +14,7 @@ import RPi.GPIO as GPIO
 # PH Threshold Range
 # Range that will affect the dosing sequence
 PH_Setpoint = 5.0
-PH_HIGH_THRESHOLD = 6.0
+PH_max = 6.0
 # EC Threshold Range
 # Range that will affect the dosing sequence
 EC_Setpoint = 1.0
