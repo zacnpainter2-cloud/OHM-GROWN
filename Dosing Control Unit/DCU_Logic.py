@@ -11,14 +11,17 @@ import RPi.GPIO as GPIO
             #=========================INITIAL CONDITIONS/DEFAUL VALUES============================
             #===================================================================================== 
 
-# PH Threshold Range
+# pH Max Value Set
+# pH Setpoint Set
 # Range that will affect the dosing sequence
 PH_Setpoint = 5.0
-PH_max = 6.0
-# EC Threshold Range
+PH_Max = 6.0
+
+# EC Min Value Set
+# EC Setpoint Set
 # Range that will affect the dosing sequence
 EC_Setpoint = 1.0
-EC_LOW_THRESHOLD = 0.9
+EC_Min = 0.9
 
 #PH and EC pump Status bits
 PH_Status=0
@@ -43,7 +46,7 @@ GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
 def PH_NOT_at_Setpoint():
             return PH_measurement > PH_Setpoint
 def PH_out_of_range():
-            return  PH_measurement > PH_HIGH_THRESHOLD
+            return  PH_measurement > PH_Max
 PH_Above_Setpoint = PH_NOT_at_Setpoint()
 PH_Above_MAX = PH_out_of_range()
                 
@@ -51,7 +54,7 @@ PH_Above_MAX = PH_out_of_range()
 def EC_NOT_at_Setpoint():
             return EC_measurement < EC_Setpoint
 def EC_out_of_range():
-            return  EC_measurement < EC_LOW_THRESHOLD
+            return  EC_measurement < EC_Min
 EC_Below_Setpoint = EC_NOT_at_Setpoint()
 EC_Below_MIN = EC_out_of_range()
 
@@ -67,10 +70,10 @@ try:
     while True:
 
         #-------Displaying Threshold Values for both Pumps-------#
-        print(f"PH Upper Threshold: {PH_HIGH_THRESHOLD:.2f}")
+        print(f"PH Upper Threshold: {PH_Max:.2f}")
         print(f"PH Setpoint: {PH_Setpoint:.2f}")
         print(f"EC Setpoint: {EC_Setpoint:.2f}")
-        print(f"EC Lower Threshold: {EC_LOW_THRESHOLD:.2f}")
+        print(f"EC Lower Threshold: {EC_EC_Min:.2f}")
 
         #-------Entering and Displaying the pH and EC measurement values-------#
         PH_measurement = float(input("Enter desired pH value:"))
