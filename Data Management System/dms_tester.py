@@ -52,8 +52,10 @@ def main():
 
             ph = round(random.uniform(6.5, 7.2), 2)
             ec = round(random.uniform(0.6, 1.2), 2)
-            water_level = round(random.uniform(50, 100), 1)
+            water_level = round(random.uniform(5.5, 7.0), 2)
             circulation = random.choice([True, False])
+            temperature = round(random.uniform(90.0, 101.0), 2)
+            o2 = round(random.uniform(5.0, 8.0), 2)
 
             ph_pump = ph < ph_min
             ec_pump = ec < ec_min
@@ -68,6 +70,8 @@ def main():
             send_json({"type": "ec", "timestamp": now, "value": ec})
             send_json({"type": "water_level", "timestamp": now, "value": water_level})
             send_json({"type": "circulation", "timestamp": now, "value": circulation})
+            send_json({"type": "temperature", "timestamp": now, "value": temperature})
+            send_json({"type": "o2", "timestamp": now, "value": o2})
             send_json({"type": "ph_pump", "timestamp": now, "value": ph_pump})
             send_json({"type": "ec_pump", "timestamp": now, "value": ec_pump})
             send_json({"type": "transpiration", "timestamp": now, "value": transpiration})
