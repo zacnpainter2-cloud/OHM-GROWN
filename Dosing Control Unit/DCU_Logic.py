@@ -54,8 +54,8 @@ try:
 
         #-------Displaying Threshold Values for both Pumps-------#
         print(f"PH Upper Threshold: {PH_HIGH_THRESHOLD:.2f}")
-        print(f"PH Lower Threshold: {PH_LOW_THRESHOLD:.2f}")
-        print(f"EC Upper Threshold: {EC_HIGH_THRESHOLD:.2f}")
+        print(f"PH Setpoint: {PH_Setpoint:.2f}")
+        print(f"EC Setpoint: {EC_Setpoint:.2f}")
         print(f"EC Lower Threshold: {EC_LOW_THRESHOLD:.2f}")
 
         #-------Entering and Displaying the pH and EC measurement values-------#
@@ -64,10 +64,7 @@ try:
         print(f"PH measurement: {PH_measurement:.2f}")      
         print(f"EC measurement: {EC_measurement:.2f}")      
 
-        #-------Range Functions-------#
-        PH_out_of_range = (PH_measurement < PH_Setpoint or PH_measurement > PH_HIGH_THRESHOLD)   
-        EC_out_of_range = (EC_measurement < EC_LOW_THRESHOLD or EC_measurement > EC_HIGH_THRESHOLD)  
-        
+        #-------pH Range Functions-------#
         def PH_NOT_at_Setpoint():
                     return PH_measurement > PH_Setpoint:
         def PH_out_of_range():
@@ -75,12 +72,14 @@ try:
         PH_Above_Setpoint = PH_NOT_at_Setpoint()
         PH_Above_MAX = PH_out_of_range()
                 
+        #-------EC Range Functions-------#
         def EC_NOT_at_Setpoint():
                     return EC_measurement < EC_Setpoint:
         def EC_out_of_range():
                     return  EC_measurement > EC_LOW_THRESHOLD:
         EC_Below_Setpoint = EC_NOT_at_Setpoint()
         EC_Below_MIN = EC_out_of_range()
+                
             #=====================================================================================
             #================================ LOGIC STARTS =======================================
             #=====================================================================================   
