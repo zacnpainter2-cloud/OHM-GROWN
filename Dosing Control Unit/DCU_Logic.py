@@ -59,7 +59,7 @@ try:
         print(f"PH Upper Threshold: {PH_Max:.2f}")
         print(f"PH Setpoint: {PH_Setpoint:.2f}")
         print(f"EC Setpoint: {EC_Setpoint:.2f}")
-        print(f"EC Lower Threshold: {EC_EC_Min:.2f}")
+        print(f"EC Lower Threshold: {EC_Min:.2f}")
 
         #-------Entering and Displaying the pH and EC measurement values-------#
         PH_measurement = float(input("Enter desired pH value:"))  #dms.getpH()
