@@ -122,9 +122,10 @@ try:
                     time.sleep(5)    # Dosing for 5 seconds
                     GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
                     EC_Status=0
+                    print(f"EC Pump Status: {EC_Status:f}")
                     print("Waiting 5 seconds before taking next reading for Circulation")
                     time.sleep(5)   # Wait before next reading (Circulation Timer)
-                    print(f"EC measurement: {EC_measurement:.2f}") #dms.getEC()
+                    EC_measurement = float(input("Enter desired EC value:"))   #dms.getEC()
                     EC_Below_Setpoint = EC_NOT_at_Setpoint()
             
         #-------If Both Measurements are good, Code will break for a longer amount of time-------#
