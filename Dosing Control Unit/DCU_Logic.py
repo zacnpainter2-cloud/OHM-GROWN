@@ -42,21 +42,7 @@ GPIO.setup(EC_PUMP_ON_PIN, GPIO.OUT)
 GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)
 GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
 
-#-------pH Range Functions-------#
-def PH_NOT_at_Setpoint():
-            return PH_measurement > PH_Setpoint
-def PH_out_of_range():
-            return  PH_measurement > PH_Max
-PH_Above_Setpoint = PH_NOT_at_Setpoint()
-PH_Above_MAX = PH_out_of_range()
-                
-        #-------EC Range Functions-------#
-def EC_NOT_at_Setpoint():
-            return EC_measurement < EC_Setpoint
-def EC_out_of_range():
-            return  EC_measurement < EC_Min
-EC_Below_Setpoint = EC_NOT_at_Setpoint()
-EC_Below_MIN = EC_out_of_range()
+
 
             #=====================================================================================
             #================================ PROGRAM STARTING ===================================
@@ -79,8 +65,23 @@ try:
         PH_measurement = float(input("Enter desired pH value:"))  #dms.getpH()
         EC_measurement = float(input("Enter desired EC value:"))   #dms.getEC()        
         print(f"PH measurement: {PH_measurement:.2f}")      
-        print(f"EC measurement: {EC_measurement:.2f}")      
-
+        print(f"EC measurement: {EC_measurement:.2f}")
+        #-------pH Range Functions-------#
+        def PH_NOT_at_Setpoint():
+            return PH_measurement > PH_Setpoint
+        def PH_out_of_range():
+            return  PH_measurement > PH_Max
+        PH_Above_Setpoint = PH_NOT_at_Setpoint()
+        PH_Above_MAX = PH_out_of_range()
+                
+        #-------EC Range Functions-------#
+        def EC_NOT_at_Setpoint():
+            return EC_measurement < EC_Setpoint
+        def EC_out_of_range():
+            return  EC_measurement < EC_Min
+        EC_Below_Setpoint = EC_NOT_at_Setpoint()
+        EC_Below_MIN = EC_out_of_range()
+            
                 
             #=====================================================================================
             #================================ LOGIC STARTS =======================================
