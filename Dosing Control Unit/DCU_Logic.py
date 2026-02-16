@@ -76,8 +76,8 @@ try:
         print(f"EC Lower Threshold: {EC_EC_Min:.2f}")
 
         #-------Entering and Displaying the pH and EC measurement values-------#
-        PH_measurement = float(input("Enter desired pH value:"))
-        EC_measurement = float(input("Enter desired EC value:"))
+        PH_measurement = float(input("Enter desired pH value:"))  #dms.getpH()
+        EC_measurement = float(input("Enter desired EC value:"))   #dms.getEC()        
         print(f"PH measurement: {PH_measurement:.2f}")      
         print(f"EC measurement: {EC_measurement:.2f}")      
 
@@ -102,7 +102,7 @@ try:
                     print(f"PH Pump Status: {PH_Status:f}")
                     print("Waiting 5 seconds before taking next reading for Circulation")
                     time.sleep(5)   # Wait before next reading (Circulation Timer)
-                    PH_measurement = float(input("Enter desired pH value:"))
+                    PH_measurement = float(input("Enter desired pH value:"))   #dms.getpH()
                     PH_Above_Setpoint = PH_NOT_at_Setpoint()
                     
 
@@ -123,7 +123,7 @@ try:
                     EC_Status=0
                     print("Waiting 5 seconds before taking next reading for Circulation")
                     time.sleep(5)   # Wait before next reading (Circulation Timer)
-                    print(f"EC measurement: {EC_measurement:.2f}") 
+                    print(f"EC measurement: {EC_measurement:.2f}") #dms.getEC()
                     EC_Below_Setpoint = EC_NOT_at_Setpoint()
             
         #-------If Both Measurements are good, Code will break for a longer amount of time-------#
