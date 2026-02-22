@@ -7,7 +7,7 @@ ADDR_LOW  = 0x77   # 8 sections
 ADDR_HIGH = 0x78   # 12 sections
 
 THRESHOLD = 100          
-CM_PER_SECTION = 0.5     
+MM_PER_SECTION = 5     
 POLL_S = 0.25
 
 def read_sections(bus):
@@ -45,12 +45,12 @@ def main():
                 low, high = read_sections(bus)
                 n = sections_wet(low, high)
 
-                depth_cm = n * CM_PER_SECTION
+                depth_cm = n * MM_PER_SECTION
                 percent = n * 5  # 20 sections -> 5% each
 
                 # One-line update (carriage return)
                 print(
-                    f"\rPads touching: {n:02d}/20 | Depth est: ~{depth_cm:4.1f} cm | {percent:3d}%",
+                    f"\rPads touching: {n:02d}/20 | Depth est: ~{depth_cm:4.1f} mm | {percent:3d}%",
                     end="",
                     flush=True
                 )
