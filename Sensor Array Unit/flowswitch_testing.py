@@ -3,7 +3,7 @@ import time
 from gpiozero import DigitalInputDevice
 
 #Choosing GPIO
-pin = 5  # Switch between GPIO5 and GND
+pin = 16  # Switch between GPIO16 and GND
 
 # Enable internal pull-up resistor
 # GPIO reads HIGH when switch is open
