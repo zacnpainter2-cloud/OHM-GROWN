@@ -1,0 +1,54 @@
+import { createContext, useContext, useState, ReactNode } from "react";
+
+export interface ThresholdValues {
+  ec: { lower: number; upper: number };
+  ph: { lower: number; upper: number };
+  temperature: { lower: number; upper: number }; // stored in Fahrenheit
+  o2: { lower: number; upper: number }; // stored in %
+  waterLevel: { lower: number; upper: number }; // stored in cm
+}
+
+export interface SetpointValues {
+  ec: number;
+  ph: number;
+}
+
+interface ThresholdContextType {
+  thresholds: ThresholdValues;
+  setThresholds: (thresholds: ThresholdValues) => void;
+  setpoints: SetpointValues;
+  setSetpoints: (setpoints: SetpointValues) => void;
+}
+
+const ThresholdContext = createContext<ThresholdContextType | undefined>(undefined);
+
+export function ThresholdProvider({ children }: { children: ReactNode }) {
+  // Default thresholds in base units (F, %, cm, μS/cm)
+  const [thresholds, setThresholds] = useState<ThresholdValues>({
+    ec: { lower: 1000, upper: 1800 }, // μS/cm
+    ph: { lower: 6.5, upper: 8.5 },
+    temperature: { lower: 65, upper: 80 }, // °F
+    o2: { lower: 6, upper: 12 }, // %
+    waterLevel: { lower: 70, upper: 95 }, // cm
+  });
+
+  // Setpoints for EC and pH
+  const [setpoints, setSetpoints] = useState<SetpointValues>({
+    ec: 1500,
+    ph: 7.0,
+  });
+
+  return (
+    <ThresholdContext.Provider value={{ thresholds, setThresholds, setpoints, setSetpoints }}>
+      {children}
+    </ThresholdContext.Provider>
+  );
+}
+
+export function useThresholds() {
+  const context = useContext(ThresholdContext);
+  if (!context) {
+    throw new Error("useThresholds must be used within ThresholdProvider");
+  }
+  return context;
+}
