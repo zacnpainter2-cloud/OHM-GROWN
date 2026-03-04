@@ -1,0 +1,141 @@
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import type { SensorReading } from "../types/sensor-data";
+
+export interface DosingEvent {
+  id: string;
+  timestamp: number;
+  type: "EC" | "pH";
+  action: "started" | "stopped";
+  value?: number;
+}
+
+interface DosingContextType {
+  dosingHistory: DosingEvent[];
+  checkDosingEvents: (reading: SensorReading) => void;
+  clearDosingHistory: () => void;
+}
+
+const DosingContext = createContext<DosingContextType | undefined>(undefined);
+
+export function DosingProvider({ children }: { children: ReactNode }) {
+  const [dosingHistory, setDosingHistory] = useState<DosingEvent[]>(() => {
+    const stored = localStorage.getItem("hydro-dosing-history");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  // Initialize last flag states from localStorage
+  const [lastECFlag, setLastECFlag] = useState<number | undefined>(() => {
+    const stored = localStorage.getItem("hydro-last-ec-flag");
+    return stored !== null ? parseInt(stored) : undefined;
+  });
+  
+  const [lastPHFlag, setLastPHFlag] = useState<number | undefined>(() => {
+    const stored = localStorage.getItem("hydro-last-ph-flag");
+    return stored !== null ? parseInt(stored) : undefined;
+  });
+
+  // Save to localStorage whenever history changes
+  useEffect(() => {
+    localStorage.setItem("hydro-dosing-history", JSON.stringify(dosingHistory));
+  }, [dosingHistory]);
+  
+  // Save last flag states to localStorage
+  useEffect(() => {
+    if (lastECFlag !== undefined) {
+      localStorage.setItem("hydro-last-ec-flag", lastECFlag.toString());
+    }
+  }, [lastECFlag]);
+  
+  useEffect(() => {
+    if (lastPHFlag !== undefined) {
+      localStorage.setItem("hydro-last-ph-flag", lastPHFlag.toString());
+    }
+  }, [lastPHFlag]);
+
+  const checkDosingEvents = useCallback((reading: SensorReading) => {
+    const newEvents: DosingEvent[] = [];
+    const now = reading.timestamp;
+
+    // Check EC dosing flag (0 = not dosing, 1 = dosing)
+    if (reading.ecDosingFlag !== undefined) {
+      // Detect transition from 0 to 1 (dosing started) OR first reading with flag=1
+      if (reading.ecDosingFlag === 1 && (lastECFlag === undefined || lastECFlag === 0)) {
+        newEvents.push({
+          id: `ec-${now}`,
+          timestamp: now,
+          type: "EC",
+          action: "started",
+          value: reading.ec,
+        });
+      }
+      // Detect transition from 1 to 0 (dosing stopped)
+      if (reading.ecDosingFlag === 0 && lastECFlag === 1) {
+        newEvents.push({
+          id: `ec-${now}`,
+          timestamp: now,
+          type: "EC",
+          action: "stopped",
+          value: reading.ec,
+        });
+      }
+      setLastECFlag(reading.ecDosingFlag);
+    }
+
+    // Check pH dosing flag (0 = not dosing, 1 = dosing)
+    if (reading.phDosingFlag !== undefined) {
+      // Detect transition from 0 to 1 (dosing started) OR first reading with flag=1
+      if (reading.phDosingFlag === 1 && (lastPHFlag === undefined || lastPHFlag === 0)) {
+        newEvents.push({
+          id: `ph-${now}`,
+          timestamp: now,
+          type: "pH",
+          action: "started",
+          value: reading.ph,
+        });
+      }
+      // Detect transition from 1 to 0 (dosing stopped)
+      if (reading.phDosingFlag === 0 && lastPHFlag === 1) {
+        newEvents.push({
+          id: `ph-${now}`,
+          timestamp: now,
+          type: "pH",
+          action: "stopped",
+          value: reading.ph,
+        });
+      }
+      setLastPHFlag(reading.phDosingFlag);
+    }
+
+    if (newEvents.length > 0) {
+      setDosingHistory((prev) => [...newEvents, ...prev].slice(0, 10000)); // Keep last 10,000 events
+    }
+  }, [lastECFlag, lastPHFlag]);
+
+  const clearDosingHistory = useCallback(() => {
+    setDosingHistory([]);
+    localStorage.removeItem("hydro-dosing-history");
+    localStorage.removeItem("hydro-last-ec-flag");
+    localStorage.removeItem("hydro-last-ph-flag");
+  }, []);
+
+  return (
+    <DosingContext.Provider value={{ dosingHistory, checkDosingEvents, clearDosingHistory }}>
+      {children}
+    </DosingContext.Provider>
+  );
+}
+
+export function useDosing() {
+  const context = useContext(DosingContext);
+  if (!context) {
+    throw new Error("useDosing must be used within DosingProvider");
+  }
+  return context;
+}
