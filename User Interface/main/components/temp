@@ -1,0 +1,166 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Badge } from "./ui/badge";
+import { useSensorData } from "../hooks/useSensorData";
+import { useUnits } from "./UnitContext";
+import { useMemo } from "react";
+import { StatisticsCard } from "./StatisticsCard";
+
+export function TemperaturePage() {
+  const { readings, latestReading, isLoading } = useSensorData();
+  const { tempUnit } = useUnits();
+  
+  // Convert temperature based on unit (sensor sends Celsius)
+  const convertTemp = (tempC: number) => {
+    return tempUnit === "F" ? (tempC * 9 / 5) + 32 : tempC;
+  };
+
+  // Filter readings to last 24 hours
+  const filteredReadings = useMemo(() => {
+    const now = Date.now();
+    const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+    return readings.filter((r) => r.timestamp >= twentyFourHoursAgo);
+  }, [readings]);
+  
+  // Transform sensor readings for the chart
+  const chartData = useMemo(() => {
+    return filteredReadings.map(reading => ({
+      time: new Date(reading.timestamp).toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      temp: convertTemp(reading.temperature),
+      timestamp: reading.timestamp,
+    }));
+  }, [filteredReadings, tempUnit]);
+  
+  // Calculate 24h average
+  const average24h = useMemo(() => {
+    if (filteredReadings.length === 0) return 0;
+    const sum = filteredReadings.reduce((acc, r) => acc + r.temperature, 0);
+    return (sum / filteredReadings.length).toFixed(1);
+  }, [filteredReadings]);
+
+  // Calculate 7-day average
+  const average7d = useMemo(() => {
+    const now = Date.now();
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const sevenDayReadings = readings.filter((r) => r.timestamp >= sevenDaysAgo);
+    if (sevenDayReadings.length === 0) return 0;
+    const sum = sevenDayReadings.reduce((acc, r) => acc + r.temperature, 0);
+    return (sum / sevenDayReadings.length).toFixed(1);
+  }, [readings]);
+
+  // Extract temperature values for statistics
+  const tempValues = useMemo(() => {
+    return filteredReadings.map((r) => r.temperature);
+  }, [filteredReadings]);
+  
+  const currentTemp = latestReading ? convertTemp(latestReading.temperature) : 0;
+  
+  // Determine status based on typical range
+  const getStatus = (value: number) => {
+    // Convert to Fahrenheit for comparison if needed
+    const tempF = tempUnit === "F" ? value : (value * 9 / 5) + 32;
+    if (tempF < 65 || tempF > 80) return { label: "Warning", variant: "destructive" as const };
+    if (tempF < 68 || tempF > 78) return { label: "Caution", variant: "secondary" as const };
+    return { label: "Normal", variant: "default" as const };
+  };
+  
+  const status = getStatus(currentTemp);
+  
+  const optimalRange = tempUnit === "C" ? "18 - 26" : "65 - 78";
+  const minDomain = tempUnit === "C" ? 10 : 50;
+  const maxDomain = tempUnit === "C" ? 35 : 95;
+  
+  if (isLoading && readings.length === 0) {
+    return <div className="max-w-7xl mx-auto space-y-6">Loading...</div>;
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Temperature Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Temperature</CardTitle>
+            <CardDescription>Real-time measurement</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl">{currentTemp.toFixed(1)}</span>
+              <span className="text-muted-foreground">°{tempUnit}</span>
+            </div>
+            <Badge className="mt-2" variant={status.variant}>{status.label}</Badge>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>7-Day Average</CardTitle>
+            <CardDescription>Weekly average</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl">{convertTemp(parseFloat(average7d)).toFixed(1)}</span>
+              <span className="text-muted-foreground">°{tempUnit}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Optimal Range</CardTitle>
+            <CardDescription>Target values</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl">{optimalRange}</span>
+              <span className="text-muted-foreground">°{tempUnit}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Statistics Card */}
+      <StatisticsCard title="Temperature" data={tempValues} unit={`°${tempUnit}`} color="red" decimals={1} />
+
+      {/* Temperature Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Temperature Monitoring</CardTitle>
+          <CardDescription>
+            Water temperature over the last 24 hours
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="time" className="text-xs" />
+              <YAxis className="text-xs" domain={[minDomain, maxDomain]} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  color: 'hsl(var(--foreground))'
+                }}
+              />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="temp" 
+                stroke="#ef4444" 
+                strokeWidth={3}
+                name={`Temperature (°${tempUnit})`}
+                dot={{ fill: '#ef4444', r: 4 }}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
