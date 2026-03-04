@@ -1,0 +1,626 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Wrench, Settings, FileText, WifiOff, AlertTriangle } from "lucide-react";
+
+export function UserManualPage() {
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="mb-6">
+        <h1 className="text-slate-900 mb-2">User Manual</h1>
+        <p className="text-slate-600">
+          Complete guide for operating and maintaining your hydroponics monitoring system
+        </p>
+      </div>
+
+      <Accordion type="single" collapsible className="space-y-4">
+        {/* Calibration Instructions */}
+        <AccordionItem value="calibration" className="border rounded-lg bg-white">
+          <AccordionTrigger className="px-6 hover:no-underline">
+            <div className="flex items-center gap-3">
+              <Wrench className="w-5 h-5 text-blue-600" />
+              <div className="text-left">
+                <h3 className="text-slate-900">Calibration Instructions</h3>
+                <p className="text-sm text-slate-500">Step-by-step sensor calibration procedures</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-slate-900 mb-2">pH Sensor Calibration</h4>
+                <ol className="list-decimal list-inside space-y-2 text-slate-600">
+                  <li>Prepare pH 4.0, 7.0, and 10.0 calibration solutions at room temperature</li>
+                  <li>Rinse the pH probe with distilled water and pat dry with lint-free tissue</li>
+                  <li>Immerse the probe in pH 7.0 solution and wait for reading to stabilize</li>
+                  <li>Press and hold the CAL button for 3 seconds to enter calibration mode</li>
+                  <li>Repeat process with pH 4.0 and pH 10.0 solutions</li>
+                  <li>System will automatically save calibration data</li>
+                  <li>Verify calibration by testing all three solutions again</li>
+                </ol>
+              </div>
+              
+              <div>
+                <h4 className="text-slate-900 mb-2">EC Sensor Calibration</h4>
+                <ol className="list-decimal list-inside space-y-2 text-slate-600">
+                  <li>Obtain 1413 µS/cm calibration solution at 25°C (77°F)</li>
+                  <li>Rinse the EC probe with distilled water and shake dry</li>
+                  <li>Immerse the probe fully in calibration solution</li>
+                  <li>Wait 30 seconds for temperature to stabilize</li>
+                  <li>Press CAL button to begin single-point calibration</li>
+                  <li>LED will flash during calibration and turn solid when complete</li>
+                  <li>Rinse probe thoroughly before returning to service</li>
+                </ol>
+              </div>
+
+              <div>
+                <h4 className="text-slate-900 mb-2">Temperature Sensor Calibration</h4>
+                <ol className="list-decimal list-inside space-y-2 text-slate-600">
+                  <li>Use certified thermometer as reference in ice water bath (32°F / 0°C)</li>
+                  <li>Wait 5 minutes for sensor to reach thermal equilibrium</li>
+                  <li>Note any offset between sensor reading and reference</li>
+                  <li>Access system settings and enter offset value</li>
+                  <li>Verify calibration with a second temperature point (98.6°F / 37°C)</li>
+                </ol>
+              </div>
+
+              <div>
+                <h4 className="text-slate-900 mb-2">Dissolved Oxygen (O2) Calibration</h4>
+                <ol className="list-decimal list-inside space-y-2 text-slate-600">
+                  <li>Remove sensor from water and wipe membrane dry</li>
+                  <li>Ensure sensor is in air-saturated environment (100% humidity recommended)</li>
+                  <li>Enter calibration mode from settings menu</li>
+                  <li>Wait 5-10 minutes for reading to stabilize</li>
+                  <li>Set calibration point to 100% or enter local barometric pressure</li>
+                  <li>System will calculate oxygen saturation at current temperature</li>
+                </ol>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Maintenance Mode Instructions */}
+        <AccordionItem value="maintenance" className="border rounded-lg bg-white">
+          <AccordionTrigger className="px-6 hover:no-underline">
+            <div className="flex items-center gap-3">
+              <Settings className="w-5 h-5 text-blue-600" />
+              <div className="text-left">
+                <h3 className="text-slate-900">Maintenance Mode Instructions</h3>
+                <p className="text-sm text-slate-500">System maintenance and cleaning procedures</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-slate-900 mb-2">Entering Maintenance Mode</h4>
+                <ol className="list-decimal list-inside space-y-2 text-slate-600">
+                  <li>Navigate to Threshold tab in the dashboard</li>
+                  <li>Scroll to bottom and click "Enable Maintenance Mode"</li>
+                  <li>System alerts will be temporarily disabled</li>
+                  <li>Data logging continues but threshold violations won't trigger alarms</li>
+                  <li>Maintenance mode indicator will appear in top alert bar</li>
+                </ol>
+              </div>
+
+              <div>
+                <h4 className="text-slate-900 mb-2">Weekly Maintenance Tasks</h4>
+                <ul className="list-disc list-inside space-y-2 text-slate-600">
+                  <li>Inspect all sensor probes for algae growth or debris buildup</li>
+                  <li>Clean pH probe with pH electrode cleaning solution</li>
+                  <li>Rinse EC probe with distilled water and gently wipe contacts</li>
+                  <li>Check water level sensor for obstruction or contamination</li>
+                  <li>Verify all cable connections are secure and dry</li>
+                  <li>Check system battery backup status (if applicable)</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-slate-900 mb-2">Monthly Maintenance Tasks</h4>
+                <ul className="list-disc list-inside space-y-2 text-slate-600">
+                  <li>Recalibrate all sensors using procedures in Calibration section</li>
+                  <li>Clean sensor storage caps and replace storage solutions</li>
+                  <li>Inspect O2 sensor membrane for damage; replace if necessary</li>
+                  <li>Test LoRa communication range and signal strength</li>
+                  <li>Export and backup system data</li>
+                  <li>Update system firmware if updates are available</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-slate-900 mb-2">Exiting Maintenance Mode</h4>
+                <ol className="list-decimal list-inside space-y-2 text-slate-600">
+                  <li>Complete all maintenance tasks and sensor reinstallation</li>
+                  <li>Wait 5 minutes for all sensors to stabilize</li>
+                  <li>Return to Threshold tab and click "Disable Maintenance Mode"</li>
+                  <li>Verify all sensor readings are within expected ranges</li>
+                  <li>System will resume normal alert monitoring</li>
+                </ol>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* System Specifications */}
+        <AccordionItem value="specifications" className="border rounded-lg bg-white">
+          <AccordionTrigger className="px-6 hover:no-underline">
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 text-blue-600" />
+              <div className="text-left">
+                <h3 className="text-slate-900">System Specifications</h3>
+                <p className="text-sm text-slate-500">Technical specifications and sensor ranges</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">pH Sensor</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Range:</span>
+                      <span>0.00 - 14.00 pH</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Accuracy:</span>
+                      <span>±0.01 pH</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Resolution:</span>
+                      <span>0.01 pH</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Response Time:</span>
+                      <span>&lt;5 seconds</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">EC Sensor</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Range:</span>
+                      <span>0 - 5000 µS/cm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Accuracy:</span>
+                      <span>±2% F.S.</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Resolution:</span>
+                      <span>1 µS/cm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Response Time:</span>
+                      <span>&lt;10 seconds</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Temperature Sensor</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Range:</span>
+                      <span>32 - 122°F (0 - 50°C)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Accuracy:</span>
+                      <span>±0.5°F (±0.3°C)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Resolution:</span>
+                      <span>0.1°F (0.05°C)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Response Time:</span>
+                      <span>&lt;30 seconds</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Dissolved O2 Sensor</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Range:</span>
+                      <span>0 - 20 mg/L</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Accuracy:</span>
+                      <span>±0.1 mg/L</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Resolution:</span>
+                      <span>0.01 mg/L</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Response Time:</span>
+                      <span>&lt;60 seconds</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Water Level Sensor</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Range:</span>
+                      <span>0 - 100 cm (0 - 39 in)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Accuracy:</span>
+                      <span>±0.5 cm (±0.2 in)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Resolution:</span>
+                      <span>0.1 cm (0.04 in)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Type:</span>
+                      <span>Ultrasonic</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">LoRa Communication</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Frequency:</span>
+                      <span>915 MHz (US)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Range:</span>
+                      <span>Up to 2 km line-of-sight</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Data Rate:</span>
+                      <span>5.5 kbps</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Power:</span>
+                      <span>+20 dBm max</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="mt-6">
+                <h4 className="text-slate-900 mb-3">General System Specifications</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">Operating Voltage:</span>
+                    <span>12V DC / 5V DC</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">Power Consumption:</span>
+                    <span>2.5W avg, 5W max</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">Operating Temp:</span>
+                    <span>32 - 104°F (0 - 40°C)</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">Storage Temp:</span>
+                    <span>-4 - 140°F (-20 - 60°C)</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">Humidity:</span>
+                    <span>5 - 95% RH non-condensing</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">IP Rating:</span>
+                    <span>IP65 (enclosure)</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">Data Logging:</span>
+                    <span>1 minute intervals</span>
+                  </div>
+                  <div className="flex justify-between p-3 bg-slate-50 rounded">
+                    <span className="text-slate-600">Storage Capacity:</span>
+                    <span>90 days continuous</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* LoRa Errors */}
+        <AccordionItem value="lora-errors" className="border rounded-lg bg-white">
+          <AccordionTrigger className="px-6 hover:no-underline">
+            <div className="flex items-center gap-3">
+              <WifiOff className="w-5 h-5 text-blue-600" />
+              <div className="text-left">
+                <h3 className="text-slate-900">LoRa Errors</h3>
+                <p className="text-sm text-slate-500">Common communication errors and solutions</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-4">
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <span className="text-orange-600">Error Code: LR-001</span>
+                  </CardTitle>
+                  <CardDescription>Connection Timeout</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Description:</span> Gateway cannot establish connection with sensor node</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Possible Causes:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Sensor node is out of range</li>
+                    <li>Physical obstruction between gateway and node</li>
+                    <li>Sensor node is powered off or battery depleted</li>
+                  </ul>
+                  <p className="text-slate-600"><span className="text-slate-900">Solution:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Verify sensor node power LED is illuminated</li>
+                    <li>Move sensor node closer to gateway temporarily to test</li>
+                    <li>Check for metal objects or concrete walls blocking signal</li>
+                    <li>Replace batteries if voltage drops below 3.3V</li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <span className="text-orange-600">Error Code: LR-002</span>
+                  </CardTitle>
+                  <CardDescription>Weak Signal Strength</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Description:</span> RSSI (Received Signal Strength Indicator) below -120 dBm</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Possible Causes:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Distance between devices is near maximum range</li>
+                    <li>Antenna orientation is suboptimal</li>
+                    <li>Electromagnetic interference from other devices</li>
+                  </ul>
+                  <p className="text-slate-600"><span className="text-slate-900">Solution:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Reposition gateway to more central location</li>
+                    <li>Ensure antennas are vertical and unobstructed</li>
+                    <li>Add LoRa repeater if distance cannot be reduced</li>
+                    <li>Check for nearby 900 MHz interference sources</li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <span className="text-orange-600">Error Code: LR-003</span>
+                  </CardTitle>
+                  <CardDescription>Packet Loss / CRC Error</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Description:</span> Data packets failing checksum verification (&gt;5% packet loss)</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Possible Causes:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Radio frequency interference</li>
+                    <li>Gateway or node firmware corruption</li>
+                    <li>Damaged antenna or loose connection</li>
+                  </ul>
+                  <p className="text-slate-600"><span className="text-slate-900">Solution:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Inspect and reseat all antenna connections</li>
+                    <li>Update firmware to latest stable version</li>
+                    <li>Try different LoRa spreading factor (SF7-SF12)</li>
+                    <li>Reduce transmission power if nodes are very close</li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <span className="text-orange-600">Error Code: LR-004</span>
+                  </CardTitle>
+                  <CardDescription>Gateway Offline</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Description:</span> Dashboard cannot communicate with LoRa gateway</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Possible Causes:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Network connection lost</li>
+                    <li>Gateway powered off or crashed</li>
+                    <li>Router firewall blocking communication</li>
+                  </ul>
+                  <p className="text-slate-600"><span className="text-slate-900">Solution:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Verify gateway has network connectivity (check status LED)</li>
+                    <li>Power cycle the gateway (wait 30 seconds)</li>
+                    <li>Ensure port 1700 (UDP) is open on firewall</li>
+                    <li>Check router DHCP reservation for gateway</li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              <Card className="border-orange-200 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <span className="text-orange-600">Error Code: LR-005</span>
+                  </CardTitle>
+                  <CardDescription>Authentication Failed</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Description:</span> Node cannot authenticate with gateway</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Possible Causes:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Incorrect network key or device address</li>
+                    <li>Node not registered in gateway database</li>
+                    <li>Clock drift causing timestamp mismatch</li>
+                  </ul>
+                  <p className="text-slate-600"><span className="text-slate-900">Solution:</span></p>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Re-provision node with correct credentials</li>
+                    <li>Verify DevEUI and AppKey match in both devices</li>
+                    <li>Reset and re-join node to network</li>
+                    <li>Synchronize system clocks via NTP</li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Troubleshooting */}
+        <AccordionItem value="troubleshooting" className="border rounded-lg bg-white">
+          <AccordionTrigger className="px-6 hover:no-underline">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-blue-600" />
+              <div className="text-left">
+                <h3 className="text-slate-900">Troubleshooting</h3>
+                <p className="text-sm text-slate-500">General system troubleshooting guide</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Sensor Readings Frozen or Not Updating</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Symptoms:</span> Dashboard shows same value for extended period</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Steps to Resolve:</span></p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Check if timestamp is updating (indicates communication is working)</li>
+                    <li>Physically inspect sensor - ensure it's submerged and clean</li>
+                    <li>Disconnect and reconnect sensor cable at junction box</li>
+                    <li>Restart sensor node by power cycling</li>
+                    <li>If problem persists, sensor may need replacement</li>
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Erratic or Noisy Sensor Data</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Symptoms:</span> Readings fluctuate rapidly or show impossible values</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Steps to Resolve:</span></p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Check for electrical interference near sensor cables</li>
+                    <li>Verify sensor is properly grounded</li>
+                    <li>Ensure cables are not running parallel to power lines</li>
+                    <li>Clean sensor probe and recalibrate</li>
+                    <li>Check for water infiltration in cable connections</li>
+                    <li>Try different sensor cable if available</li>
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">False Alerts / Nuisance Alarms</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Symptoms:</span> Frequent alerts when parameters appear normal</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Steps to Resolve:</span></p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Review threshold settings in Threshold tab</li>
+                    <li>Check if thresholds are too narrow for normal fluctuations</li>
+                    <li>Verify sensors are calibrated correctly</li>
+                    <li>Enable maintenance mode temporarily to diagnose</li>
+                    <li>Consider adjusting alert delay time to reduce false positives</li>
+                    <li>Export data to review historical trends</li>
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Dashboard Not Loading or Showing Data</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Symptoms:</span> Blank graphs, loading errors, or "No Data" messages</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Steps to Resolve:</span></p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Refresh browser page (Ctrl+F5 or Cmd+Shift+R)</li>
+                    <li>Clear browser cache and cookies</li>
+                    <li>Try different web browser</li>
+                    <li>Check internet connection</li>
+                    <li>Verify gateway is online (check LoRa Errors section)</li>
+                    <li>Contact technical support if issue persists</li>
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Cannot Export Data</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Symptoms:</span> Export button disabled or download fails</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Steps to Resolve:</span></p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Ensure at least one parameter is selected</li>
+                    <li>Verify both start and end dates are selected</li>
+                    <li>Check that date range contains data points</li>
+                    <li>Disable browser popup blocker</li>
+                    <li>Try shorter date range if export is very large</li>
+                    <li>Check available disk space</li>
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Power Issues / System Resets</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="text-slate-600"><span className="text-slate-900">Symptoms:</span> System reboots unexpectedly or power LEDs flicker</p>
+                  <p className="text-slate-600"><span className="text-slate-900">Steps to Resolve:</span></p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-600 ml-4">
+                    <li>Verify power supply is rated for 12V DC at minimum 2A</li>
+                    <li>Check all power connections are secure</li>
+                    <li>Measure supply voltage with multimeter (should be 11.5-12.5V)</li>
+                    <li>Inspect for corrosion on power terminals</li>
+                    <li>Test with known-good power supply</li>
+                    <li>Check for water damage in enclosure</li>
+                  </ol>
+                </CardContent>
+              </Card>
+
+              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="text-slate-900 mb-2 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-blue-600" />
+                  When to Contact Support
+                </h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-slate-600">
+                  <li>Persistent errors after following all troubleshooting steps</li>
+                  <li>Physical damage to sensors or equipment</li>
+                  <li>Suspected firmware or hardware defects</li>
+                  <li>Need assistance with advanced configuration</li>
+                  <li>System has been submerged or exposed to extreme conditions</li>
+                </ul>
+                <p className="mt-3 text-sm text-slate-600">
+                  <span className="text-slate-900">Support Contact:</span> support@hydroponic-systems.com | +1 (555) 123-4567
+                </p>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  );
+}
