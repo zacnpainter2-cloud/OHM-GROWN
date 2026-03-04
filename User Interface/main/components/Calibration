@@ -1,0 +1,103 @@
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+
+export interface CalibrationRecord {
+  sensorType: "EC" | "pH" | "Temperature" | "O2" | "Water Level";
+  lastCalibrated: number; // timestamp
+  calibrationInterval: number; // days
+  notes?: string;
+}
+
+interface CalibrationContextType {
+  calibrations: CalibrationRecord[];
+  updateCalibration: (sensorType: CalibrationRecord["sensorType"], notes?: string) => void;
+  updateCalibrationInterval: (sensorType: CalibrationRecord["sensorType"], days: number) => void;
+  getDueCalibrations: () => CalibrationRecord[];
+  getOverdueCalibrations: () => CalibrationRecord[];
+}
+
+const CalibrationContext = createContext<CalibrationContextType | undefined>(undefined);
+
+const DEFAULT_CALIBRATIONS: CalibrationRecord[] = [
+  { sensorType: "EC", lastCalibrated: Date.now(), calibrationInterval: 30, notes: "" },
+  { sensorType: "pH", lastCalibrated: Date.now(), calibrationInterval: 30, notes: "" },
+  { sensorType: "Temperature", lastCalibrated: Date.now(), calibrationInterval: 90, notes: "" },
+  { sensorType: "O2", lastCalibrated: Date.now(), calibrationInterval: 60, notes: "" },
+  { sensorType: "Water Level", lastCalibrated: Date.now(), calibrationInterval: 90, notes: "" },
+];
+
+export function CalibrationProvider({ children }: { children: ReactNode }) {
+  const [calibrations, setCalibrations] = useState<CalibrationRecord[]>(() => {
+    const stored = localStorage.getItem("hydro-calibrations");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return DEFAULT_CALIBRATIONS;
+      }
+    }
+    return DEFAULT_CALIBRATIONS;
+  });
+
+  // Save to localStorage whenever calibrations change
+  useEffect(() => {
+    localStorage.setItem("hydro-calibrations", JSON.stringify(calibrations));
+  }, [calibrations]);
+
+  const updateCalibration = useCallback((sensorType: CalibrationRecord["sensorType"], notes?: string) => {
+    setCalibrations((prev) =>
+      prev.map((cal) =>
+        cal.sensorType === sensorType
+          ? { ...cal, lastCalibrated: Date.now(), notes: notes || cal.notes }
+          : cal
+      )
+    );
+  }, []);
+
+  const updateCalibrationInterval = useCallback((sensorType: CalibrationRecord["sensorType"], days: number) => {
+    setCalibrations((prev) =>
+      prev.map((cal) =>
+        cal.sensorType === sensorType ? { ...cal, calibrationInterval: days } : cal
+      )
+    );
+  }, []);
+
+  const getDueCalibrations = useCallback(() => {
+    const now = Date.now();
+    const threeDays = 3 * 24 * 60 * 60 * 1000;
+    return calibrations.filter((cal) => {
+      const nextDue = cal.lastCalibrated + cal.calibrationInterval * 24 * 60 * 60 * 1000;
+      const timeUntilDue = nextDue - now;
+      return timeUntilDue > 0 && timeUntilDue <= threeDays;
+    });
+  }, [calibrations]);
+
+  const getOverdueCalibrations = useCallback(() => {
+    const now = Date.now();
+    return calibrations.filter((cal) => {
+      const nextDue = cal.lastCalibrated + cal.calibrationInterval * 24 * 60 * 60 * 1000;
+      return now > nextDue;
+    });
+  }, [calibrations]);
+
+  return (
+    <CalibrationContext.Provider
+      value={{
+        calibrations,
+        updateCalibration,
+        updateCalibrationInterval,
+        getDueCalibrations,
+        getOverdueCalibrations,
+      }}
+    >
+      {children}
+    </CalibrationContext.Provider>
+  );
+}
+
+export function useCalibration() {
+  const context = useContext(CalibrationContext);
+  if (!context) {
+    throw new Error("useCalibration must be used within CalibrationProvider");
+  }
+  return context;
+}
