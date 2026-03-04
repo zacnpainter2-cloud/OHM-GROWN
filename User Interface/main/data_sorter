@@ -1,0 +1,177 @@
+import os
+import json
+import base64
+import binascii
+import time
+import boto3
+
+dynamodb = boto3.resource("dynamodb")
+
+DEFAULT_TABLE_NAME = "Telemetry"
+
+EXPECTED_LEN = 10  # Updated from 8 to 10 bytes
+
+
+def _get_device_id(event) -> str:
+    print(f"DEBUG: Extracting deviceID from event keys: {list(event.keys())}")
+    
+    if isinstance(event, dict):
+        # Check for explicit deviceID field
+        if event.get("deviceID"):
+            dev_id = str(event["deviceID"])
+            print(f"DEBUG: Found deviceID in event: {dev_id}")
+            return dev_id
+        if event.get("deviceId"):
+            dev_id = str(event["deviceId"])
+            print(f"DEBUG: Found deviceId in event: {dev_id}")
+            return dev_id
+
+        # Check for WirelessDeviceId (from AWS IoT Wireless)
+        wireless_device_id = event.get("WirelessDeviceId")
+        if wireless_device_id:
+            # Map AWS device UUID to your custom deviceID
+            # Since you only have one device (deviceID 256), hardcode it
+            print(f"DEBUG: Found WirelessDeviceId: {wireless_device_id}, mapping to deviceID 256")
+            return "256"
+        
+        # Check LoRaWAN metadata
+        wm = event.get("WirelessMetadata") or {}
+        lw = wm.get("LoRaWAN") or {}
+        if lw.get("DevEui"):
+            dev_eui = str(lw["DevEui"])
+            print(f"DEBUG: Found DevEui: {dev_eui}, mapping to deviceID 256")
+            return "256"
+
+    print("WARNING: No deviceID found, using '256' as default")
+    return "256"  # Default to your device
+
+
+def _get_payload_bytes(event) -> bytes | None:
+    if not isinstance(event, dict):
+        print("ERROR: Event is not a dict")
+        return None
+
+    payload_b64 = event.get("PayloadData")
+    if payload_b64:
+        try:
+            payload = base64.b64decode(payload_b64)
+            print(f"DEBUG: Decoded PayloadData (base64) to {len(payload)} bytes: {binascii.hexlify(payload).decode()}")
+            return payload
+        except Exception as e:
+            print(f"ERROR: Failed to decode PayloadData: {e}")
+            return None
+
+    payload_hex = event.get("payloadHex")
+    if payload_hex:
+        try:
+            payload = binascii.unhexlify(payload_hex)
+            print(f"DEBUG: Decoded payloadHex to {len(payload)} bytes")
+            return payload
+        except Exception as e:
+            print(f"ERROR: Failed to decode payloadHex: {e}")
+            return None
+
+    print("ERROR: No PayloadData or payloadHex in event")
+    return None
+
+
+def _parse_payload(p: bytes) -> dict:
+    # EC: unsigned int16 big-endian (bytes 0-1)
+    ec = int.from_bytes(p[0:2], byteorder="big", signed=False)
+    
+    # pH: unsigned int8 (byte 2)
+    ph = p[2]
+    
+    # Temperature: signed int16 big-endian (bytes 3-4)
+    temp_raw = int.from_bytes(p[3:5], byteorder="big", signed=True)
+    
+    # O2: unsigned int16 big-endian (bytes 5-6)
+    o2 = int.from_bytes(p[5:7], byteorder="big", signed=False)
+    
+    # Water level: unsigned int8 (byte 7)
+    water_level = p[7]
+    
+    # Transpiration: unsigned int8 (byte 8)
+    transp = p[8]
+    
+    # Flags: unsigned int8 (byte 9)
+    # Bit 7: EC dosing
+    # Bit 6: pH dosing
+    # Bit 5: Water flow OK
+    # Bits 4-0: Unused
+    flags = p[9]
+
+    # ✅ FIXED: Read bits 7, 6, 5 (leftmost) instead of bits 0, 1, 2 (rightmost)
+    ec_dose = bool(flags & 0x80)      # Bit 7 (10000000 = 128)
+    ph_dose = bool(flags & 0x40)      # Bit 6 (01000000 = 64)
+    water_flow = bool(flags & 0x20)   # Bit 5 (00100000 = 32)
+
+    parsed = {
+        "ec_u16": ec,
+        "ph_u8": ph,
+        "temp_i16": temp_raw,
+        "o2_u16": o2,
+        "waterLevel_u8": water_level,
+        "transpiration_u8": transp,
+        "flags_u8": flags,
+        "ecDosing": ec_dose,
+        "phDosing": ph_dose,
+        "waterFlowOk": water_flow,
+    }
+    
+    print(f"DEBUG: Parsed payload: EC={ec} pH={ph/10:.1f} temp={temp_raw/10:.1f}°F O2={o2/10:.1f}% waterLevel={water_level}\" transp={transp/10:.1f} flags={flags:08b} (EC:{ec_dose}, pH:{ph_dose}, Flow:{water_flow})")
+    return parsed
+
+
+def lambda_handler(event, context):
+    print(f"DEBUG: Lambda invoked with event: {json.dumps(event)[:500]}...")  # First 500 chars
+    
+    table_name = os.getenv("TABLE_NAME", DEFAULT_TABLE_NAME)
+    table = dynamodb.Table(table_name)
+    print(f"DEBUG: Using DynamoDB table: {table_name}")
+
+    device_id = _get_device_id(event)
+    payload = _get_payload_bytes(event)
+
+    if not payload:
+        error_msg = "Missing PayloadData or payloadHex"
+        print(f"ERROR: {error_msg}")
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": error_msg}),
+        }
+
+    if len(payload) != EXPECTED_LEN:
+        error_msg = f"Bad payload length: {len(payload)} (expected {EXPECTED_LEN})"
+        print(f"ERROR: {error_msg}")
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": error_msg}),
+        }
+
+    parsed = _parse_payload(payload)
+    ts = int(time.time())
+
+    item = {
+        "deviceID": str(device_id),
+        "ts": ts,
+        "kind": "telemetry",
+        "payloadLen": len(payload),
+        "payloadHex": binascii.hexlify(payload).decode("utf-8"),
+        "parsed": parsed,
+        "eventJson": json.dumps(event)
+    }
+
+    print(f"DEBUG: Writing to DynamoDB - deviceID={device_id}, ts={ts}")
+    
+    try:
+        table.put_item(Item=item)
+        print(f"SUCCESS: Wrote telemetry to DynamoDB for device {device_id}")
+    except Exception as e:
+        print(f"ERROR: DynamoDB write failed: {e}")
+        raise
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({"ok": True, "written": {"deviceID": device_id, "ts": ts, "payloadLen": len(payload)}}),
+    }
