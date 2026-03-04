@@ -1,0 +1,257 @@
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Wrench, CheckCircle, AlertTriangle, Clock } from "lucide-react";
+import { useCalibration } from "./CalibrationContext";
+
+export function CalibrationPage() {
+  const {
+    calibrations,
+    updateCalibration,
+    updateCalibrationInterval,
+    getDueCalibrations,
+    getOverdueCalibrations,
+  } = useCalibration();
+
+  const [editingInterval, setEditingInterval] = useState<string | null>(null);
+  const [intervalValue, setIntervalValue] = useState<number>(30);
+  const [calibrationNotes, setCalibrationNotes] = useState<{ [key: string]: string }>({});
+
+  const dueCalibrations = getDueCalibrations();
+  const overdueCalibrations = getOverdueCalibrations();
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const getDaysUntilDue = (cal: typeof calibrations[0]) => {
+    const nextDue = cal.lastCalibrated + cal.calibrationInterval * 24 * 60 * 60 * 1000;
+    const daysRemaining = Math.floor((nextDue - Date.now()) / (24 * 60 * 60 * 1000));
+    return daysRemaining;
+  };
+
+  const getStatusBadge = (cal: typeof calibrations[0]) => {
+    const daysRemaining = getDaysUntilDue(cal);
+
+    if (daysRemaining < 0) {
+      return (
+        <Badge variant="outline" className="bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 border-red-300 dark:border-red-700">
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          Overdue
+        </Badge>
+      );
+    } else if (daysRemaining <= 3) {
+      return (
+        <Badge variant="outline" className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+          <Clock className="w-3 h-3 mr-1" />
+          Due Soon
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
+          <CheckCircle className="w-3 h-3 mr-1" />
+          Current
+        </Badge>
+      );
+    }
+  };
+
+  const handleCalibrateNow = (sensorType: string) => {
+    const notes = calibrationNotes[sensorType] || "";
+    updateCalibration(sensorType as any, notes);
+    setCalibrationNotes({ ...calibrationNotes, [sensorType]: "" });
+  };
+
+  const handleUpdateInterval = (sensorType: string) => {
+    updateCalibrationInterval(sensorType as any, intervalValue);
+    setEditingInterval(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Wrench className="w-8 h-8 text-teal-500" />
+        <div>
+          <h2 className="text-foreground">Sensor Calibration Management</h2>
+          <p className="text-sm text-muted-foreground">
+            Track and maintain sensor calibration schedules
+          </p>
+        </div>
+      </div>
+
+      {/* Alert Cards */}
+      {overdueCalibrations.length > 0 && (
+        <Card className="border-2 border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-900 dark:text-red-300">
+              <AlertTriangle className="w-5 h-5" />
+              Overdue Calibrations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {overdueCalibrations.map((cal) => (
+                <div key={cal.sensorType} className="text-sm text-red-800 dark:text-red-400">
+                  <strong>{cal.sensorType}</strong> sensor is {Math.abs(getDaysUntilDue(cal))} days overdue
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {dueCalibrations.length > 0 && overdueCalibrations.length === 0 && (
+        <Card className="border-2 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-300">
+              <Clock className="w-5 h-5" />
+              Calibrations Due Soon
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {dueCalibrations.map((cal) => (
+                <div key={cal.sensorType} className="text-sm text-amber-800 dark:text-amber-400">
+                  <strong>{cal.sensorType}</strong> sensor due in {getDaysUntilDue(cal)} days
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Calibration Table */}
+      <Card className="border-2 border-teal-200 dark:border-teal-800 shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wrench className="w-5 h-5 text-teal-500" />
+            Calibration Schedule
+          </CardTitle>
+          <CardDescription>Manage sensor calibration records and intervals</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sensor</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Calibrated</TableHead>
+                  <TableHead>Next Due</TableHead>
+                  <TableHead>Interval (days)</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {calibrations.map((cal) => {
+                  const nextDue = cal.lastCalibrated + cal.calibrationInterval * 24 * 60 * 60 * 1000;
+                  const daysRemaining = getDaysUntilDue(cal);
+
+                  return (
+                    <TableRow key={cal.sensorType}>
+                      <TableCell className="font-semibold">{cal.sensorType}</TableCell>
+                      <TableCell>{getStatusBadge(cal)}</TableCell>
+                      <TableCell className="font-mono text-sm">{formatDate(cal.lastCalibrated)}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {formatDate(nextDue)}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({daysRemaining >= 0 ? `${daysRemaining}d` : `${Math.abs(daysRemaining)}d overdue`})
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {editingInterval === cal.sensorType ? (
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              type="number"
+                              value={intervalValue}
+                              onChange={(e) => setIntervalValue(parseInt(e.target.value))}
+                              className="w-20"
+                              min="1"
+                            />
+                            <Button size="sm" onClick={() => handleUpdateInterval(cal.sensorType)}>
+                              Save
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingInterval(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 items-center">
+                            <span>{cal.calibrationInterval}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingInterval(cal.sensorType);
+                                setIntervalValue(cal.calibrationInterval);
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Add notes..."
+                          value={calibrationNotes[cal.sensorType] || cal.notes || ""}
+                          onChange={(e) =>
+                            setCalibrationNotes({ ...calibrationNotes, [cal.sensorType]: e.target.value })
+                          }
+                          className="max-w-xs"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" onClick={() => handleCalibrateNow(cal.sensorType)}>
+                          Calibrate Now
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Info Card */}
+      <Card className="border-2 border-teal-200 dark:border-teal-800 shadow-lg bg-gradient-to-br from-white to-teal-50/30 dark:from-gray-900 dark:to-teal-950/30">
+        <CardHeader>
+          <CardTitle className="text-lg">About Sensor Calibration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            <strong className="text-foreground">Regular calibration</strong> ensures accurate sensor readings and
+            reliable system operation.
+          </p>
+          <ul className="list-disc list-inside space-y-2 ml-2">
+            <li>
+              <strong className="text-foreground">EC & pH sensors:</strong> Recommended every 30 days
+            </li>
+            <li>
+              <strong className="text-foreground">O2 sensor:</strong> Recommended every 60 days
+            </li>
+            <li>
+              <strong className="text-foreground">Temperature & Water Level:</strong> Recommended every 90 days
+            </li>
+          </ul>
+          <p className="text-xs mt-4">
+            You'll receive alerts when sensors are due for calibration (3 days before) or overdue.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
