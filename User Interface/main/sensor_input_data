@@ -1,0 +1,195 @@
+/**
+ * Custom hook for managing sensor data
+ * Handles fetching, caching, and auto-refresh
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { fetchSensorData, fetchLatestReading } from '../services/aws-data-service';
+import { AWS_CONFIG } from '../config/aws-config';
+import type { SensorReading } from '../types/sensor-data';
+
+interface UseSensorDataResult {
+  readings: SensorReading[];
+  latestReading: SensorReading | null;
+  isLoading: boolean;
+  error: string | null;
+  lastUpdated: number | null;
+  refresh: () => Promise<void>;
+}
+
+// LocalStorage key for persisting readings
+const READINGS_STORAGE_KEY = 'hydroponics_readings';
+const MAX_READINGS = 2016; // 7 days at 5-minute intervals (7 * 24 * 60 / 5 = 2016)
+
+// Load readings from localStorage
+function loadReadingsFromStorage(): SensorReading[] {
+  try {
+    const stored = localStorage.getItem(READINGS_STORAGE_KEY);
+    if (stored) {
+      const readings = JSON.parse(stored) as SensorReading[];
+      console.log('Loaded', readings.length, 'readings from localStorage');
+      return readings;
+    }
+  } catch (err) {
+    console.error('Failed to load readings from localStorage:', err);
+  }
+  return [];
+}
+
+// Save readings to localStorage
+function saveReadingsToStorage(readings: SensorReading[]): void {
+  try {
+    localStorage.setItem(READINGS_STORAGE_KEY, JSON.stringify(readings));
+  } catch (err) {
+    console.error('Failed to save readings to localStorage:', err);
+  }
+}
+
+export function useSensorData(): UseSensorDataResult {
+  // Initialize readings from localStorage
+  const [readings, setReadings] = useState<SensorReading[]>(() => loadReadingsFromStorage());
+  const [latestReading, setLatestReading] = useState<SensorReading | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      console.log('useSensorData: Starting to load data...');
+
+      // Fetch latest reading
+      const response = await fetchLatestReading();
+
+      console.log('useSensorData: Response received:', response);
+
+      if (response.success && response.data) {
+        const newReading = response.data;
+        
+        console.log('useSensorData: New reading:', newReading);
+        
+        // Update latest reading
+        setLatestReading(newReading);
+        setLastUpdated(Date.now());
+        
+        // Accumulate readings (prevent duplicates by timestamp)
+        setReadings((prevReadings) => {
+          const existingIndex = prevReadings.findIndex(r => r.timestamp === newReading.timestamp);
+          
+          if (existingIndex !== -1) {
+            console.log('useSensorData: Updating existing reading at index', existingIndex);
+            // Update the existing reading with new data
+            const newReadings = [...prevReadings];
+            newReadings[existingIndex] = newReading;
+            
+            // Save to localStorage
+            saveReadingsToStorage(newReadings);
+            
+            return newReadings;
+          }
+          
+          console.log('useSensorData: Adding new reading to history');
+          console.log('useSensorData: Previous readings count:', prevReadings.length);
+          
+          // Add new reading and keep last 24 hours
+          const newReadings = [...prevReadings, newReading];
+          
+          console.log('useSensorData: New readings count:', newReadings.length);
+          
+          // Keep only last 7 days of data based on timestamp
+          const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+          const filteredReadings = newReadings.filter(r => r.timestamp > sevenDaysAgo);
+          
+          // Also limit by count (2016 readings = 7 days at 5 min intervals)
+          const limitedReadings = filteredReadings.slice(-MAX_READINGS);
+          
+          console.log('useSensorData: After filtering:', limitedReadings.length, 'readings');
+          
+          // Save to localStorage
+          saveReadingsToStorage(limitedReadings);
+          
+          return limitedReadings;
+        });
+      } else {
+        console.error('useSensorData: Failed to fetch data:', response.error);
+        setError(response.error || 'Failed to fetch sensor data');
+      }
+    } catch (err) {
+      console.error('useSensorData: Error loading sensor data:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+      console.log('useSensorData: Loading complete');
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Auto-refresh based on config
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData();
+    }, AWS_CONFIG.REFRESH_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [loadData]);
+
+  return {
+    readings,
+    latestReading,
+    isLoading,
+    error,
+    lastUpdated,
+    refresh: loadData,
+  };
+}
+
+/**
+ * Hook for fetching only the latest reading (lighter weight)
+ */
+export function useLatestReading() {
+  const [reading, setReading] = useState<SensorReading | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadLatest = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetchLatestReading();
+
+      if (response.success && response.data) {
+        setReading(response.data);
+      } else {
+        setError(response.error || 'Failed to fetch latest reading');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLatest();
+    
+    const interval = setInterval(() => {
+      loadLatest();
+    }, AWS_CONFIG.REFRESH_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [loadLatest]);
+
+  return {
+    reading,
+    isLoading,
+    error,
+    refresh: loadLatest,
+  };
+}
