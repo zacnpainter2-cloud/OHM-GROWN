@@ -1,0 +1,200 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  
+  /* Sea-inspired color palette */
+  --background: #f0fdfa;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0d9488;
+  --primary-foreground: #ffffff;
+  --secondary: #ccfbf1;
+  --secondary-foreground: #0f172a;
+  --muted: #e0f2fe;
+  --muted-foreground: #475569;
+  --accent: #06b6d4;
+  --accent-foreground: #0f172a;
+  --destructive: #c53030;
+  --destructive-foreground: #ffffff;
+  --border: rgba(13, 148, 136, 0.2);
+  --input: transparent;
+  --input-background: #f0fdfa;
+  --switch-background: #5eead4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: #0d9488;
+  
+  /* Chart colors - sea themed */
+  --chart-1: #0d9488;
+  --chart-2: #06b6d4;
+  --chart-3: #14b8a6;
+  --chart-4: #0891b2;
+  --chart-5: #22d3ee;
+  
+  --radius: 0.5rem;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #ccfbf1;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0d9488;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(204, 251, 241, 0.1);
+  --sidebar-ring: #0d9488;
+}
+
+.dark {
+  --background: #0a1f1f;
+  --foreground: #ccfbf1;
+  --card: #134e4a;
+  --card-foreground: #ccfbf1;
+  --popover: #134e4a;
+  --popover-foreground: #ccfbf1;
+  --primary: #14b8a6;
+  --primary-foreground: #ffffff;
+  --secondary: #0d9488;
+  --secondary-foreground: #ccfbf1;
+  --muted: #115e59;
+  --muted-foreground: #99f6e4;
+  --accent: #0d9488;
+  --accent-foreground: #ccfbf1;
+  --destructive: #f56565;
+  --destructive-foreground: #ffffff;
+  --border: rgba(20, 184, 166, 0.3);
+  --input: rgba(20, 184, 166, 0.3);
+  --ring: #14b8a6;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: #14b8a6;
+  --chart-2: #22d3ee;
+  --chart-3: #34d399;
+  --chart-4: #2dd4bf;
+  --chart-5: #5eead4;
+  --sidebar: #0a1f1f;
+  --sidebar-foreground: #ccfbf1;
+  --sidebar-primary: #14b8a6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0d9488;
+  --sidebar-accent-foreground: #ccfbf1;
+  --sidebar-border: rgba(204, 251, 241, 0.1);
+  --sidebar-ring: #14b8a6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-family);
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: 600;
+      line-height: 1.4;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: 600;
+      line-height: 1.4;
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.6;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
