@@ -1,0 +1,367 @@
+import { useMemo } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Wrench, Loader2, AlertCircle } from "lucide-react";
+import { useUnits } from "./UnitContext";
+import { useAlerts } from "./AlertContext";
+import { useSensorData } from "../hooks/useSensorData";
+
+export function HomePage() {
+  const { tempUnit, waterLevelUnit } = useUnits();
+  const { maintenanceMode, setMaintenanceMode } = useAlerts();
+  const { readings, latestReading, isLoading, error } = useSensorData();
+
+  // Convert data based on selected units
+  const data = useMemo(() => {
+    if (readings.length === 0) return [];
+    
+    return readings.map(d => ({
+      date: new Date(d.timestamp).toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      ec: d.ec,
+      ph: d.ph,
+      temp: tempUnit === "C" ? d.temperature : (d.temperature * 9 / 5) + 32,
+      o2: d.o2,
+      waterLevel: waterLevelUnit === "cm" ? d.waterLevel : d.waterLevel / 2.54,
+      transpirationRate: d.transpirationRate || 0,
+    }));
+  }, [readings, tempUnit, waterLevelUnit]);
+
+  // Loading state
+  if (isLoading && readings.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading sensor data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && readings.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-4">
+          <AlertCircle className="w-12 h-12 text-destructive" />
+          <p className="text-lg font-semibold">Failed to load sensor data</p>
+          <p className="text-muted-foreground">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No data yet state
+  if (readings.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-4">
+          <p className="text-lg font-semibold">Waiting for sensor data...</p>
+          <p className="text-muted-foreground">Data will appear once readings are received</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Water Quality Graphs Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* EC Graph */}
+        <Card>
+          <CardHeader>
+            <CardTitle>EC (Electrical Conductivity)</CardTitle>
+            <CardDescription>Last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis 
+                  dataKey="date" 
+                  className="text-xs"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  className="text-xs" 
+                  domain={[1200, 1500]}
+                  tickFormatter={(value) => value.toFixed(0)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  formatter={(value: number) => [value.toFixed(0) + ' μS/cm', 'EC']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="ec" 
+                  stroke="#0d9488" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* pH Graph */}
+        <Card>
+          <CardHeader>
+            <CardTitle>pH Level</CardTitle>
+            <CardDescription>Last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis 
+                  dataKey="date" 
+                  className="text-xs"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  className="text-xs" 
+                  domain={[6.5, 8.5]}
+                  tickFormatter={(value) => value.toFixed(1)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  formatter={(value: number) => [value.toFixed(1), 'pH']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="ph" 
+                  stroke="#06b6d4" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Temperature Graph */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Temperature</CardTitle>
+            <CardDescription>Last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis 
+                  dataKey="date" 
+                  className="text-xs"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  className="text-xs" 
+                  domain={tempUnit === "F" ? [68, 76] : [18, 26]}
+                  tickFormatter={(value) => value.toFixed(1)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  formatter={(value: number) => [value.toFixed(1) + ` °${tempUnit}`, 'Temperature']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="temp" 
+                  stroke="#14b8a6" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* O2 Graph */}
+        <Card>
+          <CardHeader>
+            <CardTitle>O2 (Dissolved Oxygen)</CardTitle>
+            <CardDescription>Last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis 
+                  dataKey="date" 
+                  className="text-xs"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  className="text-xs" 
+                  domain={[7, 10]}
+                  tickFormatter={(value) => value.toFixed(1)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  formatter={(value: number) => [value.toFixed(1) + ' %', 'O2']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="o2" 
+                  stroke="#2dd4bf" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Water Level Graph */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Water Level</CardTitle>
+            <CardDescription>Last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis 
+                  dataKey="date" 
+                  className="text-xs"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  className="text-xs" 
+                  domain={waterLevelUnit === "cm" ? [80, 90] : [31, 36]}
+                  tickFormatter={(value) => value.toFixed(1)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  formatter={(value: number) => [value.toFixed(1) + ` ${waterLevelUnit}`, 'Water Level']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="waterLevel" 
+                  stroke="#16a34a" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Transpiration Rate Graph */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Transpiration Rate</CardTitle>
+            <CardDescription>Last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis 
+                  dataKey="date" 
+                  className="text-xs"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis 
+                  className="text-xs" 
+                  domain={[2, 4]}
+                  tickFormatter={(value) => value.toFixed(1)}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  formatter={(value: number) => [value.toFixed(1) + ' L/m²/day', 'Transpiration Rate']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="transpirationRate" 
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Calibration Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle>System Controls</CardTitle>
+          <CardDescription>
+            Maintenance settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <Button 
+              variant={maintenanceMode ? "default" : "outline"}
+              onClick={() => setMaintenanceMode(!maintenanceMode)}
+              className={maintenanceMode 
+                ? "flex-1 min-w-[200px] h-20 flex flex-col gap-2 bg-amber-600 hover:bg-amber-700 text-white" 
+                : "flex-1 min-w-[200px] h-20 flex flex-col gap-2"
+              }
+            >
+              <Wrench className="w-6 h-6" />
+              Maintenance Mode
+              {maintenanceMode && <span className="text-xs">ON</span>}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
