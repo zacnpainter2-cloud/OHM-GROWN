@@ -1,0 +1,184 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Badge } from "./ui/badge";
+import { useSensorData } from "../hooks/useSensorData";
+import { useMemo } from "react";
+import { StatisticsCard } from "./StatisticsCard";
+
+export function TranspirationRatePage() {
+  const { readings, latestReading, isLoading } = useSensorData();
+
+  // Filter readings to last 24 hours
+  const filteredReadings = useMemo(() => {
+    const now = Date.now();
+    const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+    return readings.filter((r) => r.timestamp >= twentyFourHoursAgo);
+  }, [readings]);
+  
+  // Transform sensor readings for the chart
+  const chartData = useMemo(() => {
+    return filteredReadings.map(reading => ({
+      time: new Date(reading.timestamp).toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      transpirationRate: reading.transpirationRate || 0,
+      timestamp: reading.timestamp,
+    }));
+  }, [filteredReadings]);
+  
+  // Calculate 24h average
+  const average24h = useMemo(() => {
+    if (filteredReadings.length === 0) return 0;
+    const sum = filteredReadings.reduce((acc, r) => acc + (r.transpirationRate || 0), 0);
+    return (sum / filteredReadings.length).toFixed(0);
+  }, [filteredReadings]);
+
+  // Calculate 7-day average
+  const average7d = useMemo(() => {
+    const now = Date.now();
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const sevenDayReadings = readings.filter((r) => r.timestamp >= sevenDaysAgo);
+    if (sevenDayReadings.length === 0) return 0;
+    const sum = sevenDayReadings.reduce((acc, r) => acc + (r.transpirationRate || 0), 0);
+    return (sum / sevenDayReadings.length).toFixed(0);
+  }, [readings]);
+
+  // Extract transpiration rate values for statistics
+  const transpirationValues = useMemo(() => {
+    return filteredReadings.map((r) => r.transpirationRate || 0);
+  }, [filteredReadings]);
+  
+  const currentRate = latestReading?.transpirationRate || 0;
+  
+  // Determine status based on typical range (L/m²/day)
+  const getStatus = (value: number) => {
+    if (value < 1.0 || value > 6.0) return { label: "Warning", variant: "destructive" as const };
+    if (value < 2.0 || value > 5.0) return { label: "Caution", variant: "secondary" as const };
+    return { label: "Normal", variant: "default" as const };
+  };
+  
+  const status = getStatus(currentRate);
+  
+  if (isLoading && readings.length === 0) {
+    return <div className="max-w-7xl mx-auto space-y-6">Loading...</div>;
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Transpiration Rate Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Rate</CardTitle>
+            <CardDescription>Real-time measurement</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl">{currentRate.toFixed(0)}</span>
+              <span className="text-muted-foreground">L/m²/day</span>
+            </div>
+            <Badge className="mt-2" variant={status.variant}>{status.label}</Badge>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>7-Day Average</CardTitle>
+            <CardDescription>Weekly average</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl">{average7d}</span>
+              <span className="text-muted-foreground">L/m²/day</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Optimal Range</CardTitle>
+            <CardDescription>Target values</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl">2.0 - 5.0</span>
+              <span className="text-muted-foreground">L/m²/day</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Statistics Card */}
+      <StatisticsCard title="Transpiration Rate" data={transpirationValues} unit="L/m²/day" color="emerald" decimals={0} />
+
+      {/* Transpiration Rate Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Transpiration Rate Monitoring</CardTitle>
+          <CardDescription>
+            Water usage rate over the last 24 hours
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="time" className="text-xs" />
+              <YAxis className="text-xs" domain={[0, 8]} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  color: 'hsl(var(--foreground))'
+                }}
+              />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="transpirationRate" 
+                stroke="#10b981" 
+                strokeWidth={3}
+                name="Transpiration Rate (L/m²/day)"
+                dot={{ fill: '#10b981', r: 4 }}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Information Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>About Transpiration Rate</CardTitle>
+          <CardDescription>Understanding water usage patterns</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h4 className="font-semibold mb-2">What is Transpiration Rate?</h4>
+            <p className="text-sm text-muted-foreground">
+              Transpiration rate measures the amount of water that plants absorb through their roots and release 
+              through their leaves. In hydroponics, this helps monitor plant health and water consumption patterns.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-2">Optimal Range</h4>
+            <p className="text-sm text-muted-foreground">
+              A healthy transpiration rate typically falls between 2.0 - 5.0 L/m²/day. Rates outside this range 
+              may indicate stress, inadequate lighting, poor ventilation, or environmental issues.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-2">Factors Affecting Rate</h4>
+            <p className="text-sm text-muted-foreground">
+              Temperature, humidity, air circulation, light intensity, and plant growth stage all influence 
+              transpiration rates. Monitor these factors together for optimal plant health.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
