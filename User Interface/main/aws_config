@@ -1,0 +1,22 @@
+export const AWS_CONFIG = {
+  // API Gateway endpoint for fetching sensor data
+  API_GATEWAY_URL: 'https://zwk6rwl4li.execute-api.us-east-1.amazonaws.com',
+  
+  // API Key for authentication (not required for this endpoint)
+  API_KEY: '',
+  
+  // AWS Region
+  AWS_REGION: 'us-east-1',
+  
+  // IoT Topic for sending setpoints back to microcontroller
+  IOT_TOPIC: 'greenhouse/setpoints',
+  
+  // Device ID for data payload (used in sensor readings)
+  DEVICE_ID: '256',
+  
+  // AWS IoT Wireless Device UUID (used for downlink commands)
+  WIRELESS_DEVICE_ID: '1e2c5735-6650-4c5d-bea0-a5eb45050aed',
+  
+  // Data refresh interval in milliseconds (30 seconds = 30000)
+  REFRESH_INTERVAL: 30000,
+};
