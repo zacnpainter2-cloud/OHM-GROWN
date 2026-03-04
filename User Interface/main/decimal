@@ -1,0 +1,26 @@
+export function formatEC(value: number): string {
+  return value.toFixed(2);
+}
+
+
+export function formatPH(value: number): string {
+  return value.toFixed(1);
+}
+
+
+export function formatTemperature(value: number): string {
+  return value.toFixed(1);
+}
+
+export function formatO2(value: number): string {
+  return value.toFixed(1);
+}
+
+
+export function formatWaterLevel(value: number): string {
+  return value.toFixed(1);
+}
+
+export function formatTranspirationRate(value: number): string {
+  return value.toFixed(1);
+}
