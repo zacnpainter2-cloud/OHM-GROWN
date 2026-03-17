@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export interface ThresholdValues {
   ec: { lower: number; upper: number };
@@ -24,19 +24,58 @@ const ThresholdContext = createContext<ThresholdContextType | undefined>(undefin
 
 export function ThresholdProvider({ children }: { children: ReactNode }) {
   // Default thresholds in base units (F, %, cm, μS/cm)
-  const [thresholds, setThresholds] = useState<ThresholdValues>({
-    ec: { lower: 1000, upper: 1800 }, // μS/cm
-    ph: { lower: 6.5, upper: 8.5 },
-    temperature: { lower: 65, upper: 80 }, // °F
-    o2: { lower: 6, upper: 12 }, // %
-    waterLevel: { lower: 70, upper: 95 }, // cm
+  const [thresholds, setThresholds] = useState<ThresholdValues>(() => {
+    const stored = localStorage.getItem("hydro-thresholds");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return {
+          ec: { lower: 1000, upper: 1800 }, // μS/cm
+          ph: { lower: 6.5, upper: 8.5 },
+          temperature: { lower: 65, upper: 80 }, // °F
+          o2: { lower: 6, upper: 12 }, // %
+          waterLevel: { lower: 70, upper: 95 }, // cm
+        };
+      }
+    }
+    return {
+      ec: { lower: 1000, upper: 1800 }, // μS/cm
+      ph: { lower: 6.5, upper: 8.5 },
+      temperature: { lower: 65, upper: 80 }, // °F
+      o2: { lower: 6, upper: 12 }, // %
+      waterLevel: { lower: 70, upper: 95 }, // cm
+    };
   });
 
   // Setpoints for EC and pH
-  const [setpoints, setSetpoints] = useState<SetpointValues>({
-    ec: 1500,
-    ph: 7.0,
+  const [setpoints, setSetpoints] = useState<SetpointValues>(() => {
+    const stored = localStorage.getItem("hydro-setpoints");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return {
+          ec: 1500,
+          ph: 7.0,
+        };
+      }
+    }
+    return {
+      ec: 1500,
+      ph: 7.0,
+    };
   });
+
+  // Save to localStorage whenever thresholds change
+  useEffect(() => {
+    localStorage.setItem("hydro-thresholds", JSON.stringify(thresholds));
+  }, [thresholds]);
+
+  // Save to localStorage whenever setpoints change
+  useEffect(() => {
+    localStorage.setItem("hydro-setpoints", JSON.stringify(setpoints));
+  }, [setpoints]);
 
   return (
     <ThresholdContext.Provider value={{ thresholds, setThresholds, setpoints, setSetpoints }}>
