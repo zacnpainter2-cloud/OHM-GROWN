@@ -26,7 +26,7 @@ PH_MEAS_DELAY = 0.9
 
 THRESHOLD = 100
 MM_PER_SECTION = 5
-POLL_S = 6
+POLL_S = 300
 
 in_pin = DigitalInputDevice(FLOW_PIN, pull_up=True)
 
