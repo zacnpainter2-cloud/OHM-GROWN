@@ -14,35 +14,68 @@ import RPi.GPIO as GPIO
 # pH Max Value Set
 # pH Setpoint Set
 # Range that will affect the dosing sequence
-PH_Setpoint = 5.0
-PH_Max = 6.0
+PH_Default_Setpoint = 5.0
+PH_Default_Min = 4.0
 
 # EC Min Value Set
 # EC Setpoint Set
 # Range that will affect the dosing sequence
-EC_Setpoint = 1.0
-EC_Min = 0.9
+EC_Default_Setpoint = 1.0
+EC_Default_Min = 0.9
 
 #PH and EC pump Status bits
 PH_Status=0
 EC_Status=0
 
-# GPIO Pin 5 (BCM numbering)(PH output pin)
-PH_PUMP_ON_PIN = 5
+def read_ph_min():
+            with limits_lock:
+                 return limits["ph_low_thresh"]
 
-# GPIO Pin 6 (BCM numbering)(EC Output Pin)
-EC_PUMP_ON_PIN = 6
+def read_ph_max():
+            with limits_lock:
+                 return limits["ph_up_thresh"]
 
-# GPIO setup
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(PH_PUMP_ON_PIN, GPIO.OUT)
-GPIO.setup(EC_PUMP_ON_PIN, GPIO.OUT)
+def read_ec_min():
+            with limits_lock:
+                 return limits["ec_low_thresh"]
 
-#INITIAL GPIO PIN CONDITIONS
-GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)
-GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
+def read_ec_max():
+            with limits_lock:
+                 return limits["ec_up_thresh"] 
+def read_ph():
+            with sensor_lock:
+                 return sensor_state["ph"]
 
+def read_ec():
+            with sensor_lock:
+                 return sensor_state["ec"]
 
+try:
+    from smbus2 import SMBus
+except ImportError:
+    from smbus import SMBus
+I2C_BUS = 1
+EC_Pump_ADDR  = 0x68
+PH_Pump_ADDR  = 0x67
+
+def ph_pump_on(bus):
+    command = "D,*"
+    bus.write_i2c_block_data(PH_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
+    time.sleep(0.3)
+    
+def ph_pump_off(bus):
+    command = "X"
+    bus.write_i2c_block_data(PH_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
+    time.sleep(0.3)
+            
+def ec_pump_on(bus):
+    command = "D,*"
+    bus.write_i2c_block_data(EC_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
+    time.sleep(0.3)
+def ec_pump_off(bus):
+    command = "X"
+    bus.write_i2c_block_data(EC_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
+    time.sleep(0.3)
 
             #=====================================================================================
             #================================ PROGRAM STARTING ===================================
@@ -55,30 +88,43 @@ print("Starting program... (Ctrl+C to stop)")
 try:
     while True:
 
-        #-------Displaying Threshold Values for both Pumps-------#
-        print(f"PH Upper Threshold: {PH_Max:.2f}")
-        print(f"PH Setpoint: {PH_Setpoint:.2f}")
-        print(f"EC Setpoint: {EC_Setpoint:.2f}")
-        print(f"EC Lower Threshold: {EC_Min:.2f}")
-
         #-------Entering and Displaying the pH and EC measurement values-------#
-        PH_measurement = float(input("Enter desired pH value:"))  #dms.getpH()
-        EC_measurement = float(input("Enter desired EC value:"))   #dms.getEC()        
-        print(f"PH measurement: {PH_measurement:.2f}")      
-        print(f"EC measurement: {EC_measurement:.2f}")
-        #-------pH Range Functions-------#
+        PH_measurement = read_ph() 
+        EC_measurement = read_ec()      
+        
+        if read_ph_max() = 0
+            PH_Setpoint = PH_Defualt_Setpoint
+        else
+            PH_Setpoint = read_ph_max()
+                    
+        if read_ph_min() = 0
+            PH_Min = read_ph_min()
+        else
+            PH_Min = read_ph_min 
+
+        if read_ec_max() = 0
+            EC_Setpoint = EC_Defualt_Setpoint
+        else
+            EC_Setpoint = read_ec_max()
+
+        if read_ec_min() = 0
+            EC_Min = EC_Defualt_MIN
+        else
+            EC_MIN = read_ec_min()
+                
+         #-------pH Range Functions-------#
         def PH_NOT_at_Setpoint():
-            return PH_measurement > PH_Setpoint
+            return PH_measurement < PH_Setpoint
         def PH_out_of_range():
-            return  PH_measurement > PH_Max
-        PH_Above_Setpoint = PH_NOT_at_Setpoint()
+            return PH_measurement < PH_Min
+        PH_Below_Setpoint = PH_NOT_at_Setpoint()
         PH_Above_MAX = PH_out_of_range()
                 
         #-------EC Range Functions-------#
         def EC_NOT_at_Setpoint():
             return EC_measurement < EC_Setpoint
         def EC_out_of_range():
-            return  EC_measurement < EC_Min
+            return EC_measurement < EC_Min
         EC_Below_Setpoint = EC_NOT_at_Setpoint()
         EC_Below_MIN = EC_out_of_range()
             
@@ -90,21 +136,16 @@ try:
         #-------pH is Checked and Dosed(if needed) First-------#
         #-------Dosed back down to setpoint not to the range-------#
         if PH_Above_MAX:
-            while (PH_Above_Setpoint):
+            while (PH_Below_Setpoint):
                     print(" → PH OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
-                    GPIO.output(PH_PUMP_ON_PIN, GPIO.HIGH)  # PH Pump ON    #dms.setphpump(1)
-                    PH_Status=1                               # ==================================================================================
-                    EC_Status=0                               # ======================= Pump Status Bits set & ===================================
-                    print(f"PH Pump Status: {PH_Status:f}")   # =======================    Bits are Printed    ===================================
-                    print(f"EC Pump Status: {EC_Status:f}")   # ==================================================================================
-                    time.sleep(5)                   # Dosing for 5 seconds
-                    GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)   # PH Pump OFF
+                    ph_pump_on(bus)  # PH Pump ON    
+                    PH_Status=1                              
+                    EC_Status=0                              
+                    time.sleep(2)                   # Dosing for 5 seconds
+                    ph_pump_on(bus)   # PH Pump OFF
                     PH_Status=0
-                    print(f"PH Pump Status: {PH_Status:f}")
-                    print("Waiting 5 seconds before taking next reading for Circulation")
-                    time.sleep(5)   # Wait before next reading (Circulation Timer)
-                    PH_measurement = float(input("Enter desired pH value:"))   #dms.getpH()
-                    PH_Above_Setpoint = PH_NOT_at_Setpoint()
+                    time.sleep(60)   # Wait before next reading (Circulation Timer)
+                    PH_Below_Setpoint = PH_NOT_at_Setpoint()
                     
 
 
@@ -112,32 +153,23 @@ try:
         #-------Dosed back up to setpoint not to the range-------#
         elif EC_Below_MIN:
             while (EC_Below_Setpoint):
-                    print(" → PH INSIDE RANGE! MOVING TO EC")
-                    print(" → EC OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
-                    GPIO.output(EC_PUMP_ON_PIN, GPIO.HIGH)  # EC Pump ON
+                    ec_pump_on(bus)  # EC Pump ON
                     PH_Status=0                               # =================================================================================
                     EC_Status=1                               # ======================= Pump Status Bits set & ===================================
                     print(f"PH Pump Status: {PH_Status:f}")   # =======================    Bits are Printed    =================================== 
                     print(f"EC Pump Status: {EC_Status:f}")   # ==================================================================================
-                    time.sleep(5)    # Dosing for 5 seconds
-                    GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
+                    time.sleep(2)    # Dosing for 5 seconds
+                    ec_pump_off(bus) #EC Pump OFF
                     EC_Status=0
-                    print(f"EC Pump Status: {EC_Status:f}")
-                    print("Waiting 5 seconds before taking next reading for Circulation")
-                    time.sleep(5)   # Wait before next reading (Circulation Timer)
-                    EC_measurement = float(input("Enter desired EC value:"))   #dms.getEC()
+                    time.sleep(60)   # Wait before next reading (Circulation Timer)  
                     EC_Below_Setpoint = EC_NOT_at_Setpoint()
             
         #-------If Both Measurements are good, Code will break for a longer amount of time-------#
-        else:
-            print(" → Inside range. PUMP OFF.")
+        else
             GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)   # PH Pump OFF
             GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)   # EC Pump OFF
-            PH_Status=0                               # ==================================================================================
-            EC_Status=0                               # ======================= Pump Status Bits set & ===================================
-            print(f"PH Pump Status: {PH_Status:f}")   # =======================    Bits are Printed    ===================================
-            print(f"EC Pump Status: {EC_Status:f}")   # ==================================================================================
-            print("Waiting 15 seconds before taking next reading for Circulation")
+            PH_Status=0                              
+            EC_Status=0                              
             time.sleep(15)   # Wait before next reading (Circulation Timer)
                          
 except KeyboardInterrupt:
