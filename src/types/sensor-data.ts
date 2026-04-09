@@ -1,0 +1,38 @@
+/**
+ * Type definitions for sensor data
+ * 
+ * Update these types to match your actual DynamoDB structure
+ */
+
+export interface SensorReading {
+  deviceId: string;
+  timestamp: number; // Unix timestamp in milliseconds
+  ec: number; // Electrical Conductivity in μS/cm (no decimal)
+  ph: number; // pH level (raw value divided by 10 for 1 decimal precision)
+  temperature: number; // Temperature in Celsius (raw value divided by 10 for 1 decimal precision)
+  o2: number; // Dissolved Oxygen in % (raw value divided by 10 for 1 decimal precision)
+  waterLevel: number; // Water level in cm (raw value divided by 10 for 1 decimal precision)
+  waterFlowOk?: number; // Flow status (1 = no flow/issue, 0 = flow ok)
+  transpirationRate?: number; // Transpiration Rate in L/m²/day (read as-is, no decimals)
+  ecDosingFlag?: number; // EC dosing flag (0 = not dosing, 1 = dosing)
+  phDosingFlag?: number; // pH dosing flag (0 = not dosing, 1 = dosing)
+}
+
+export interface ThresholdValues {
+  ec: { min: number; max: number };
+  ph: { min: number; max: number };
+  temperature: { min: number; max: number };
+  o2: { min: number; max: number };
+  waterLevel: { min: number; max: number };
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface SensorDataResponse {
+  readings: SensorReading[];
+  lastUpdated: number;
+}

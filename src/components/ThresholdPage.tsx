@@ -1,0 +1,608 @@
+import { useState, useMemo, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Button } from "./ui/button";
+import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
+import { Zap, Droplets, Thermometer, Waves, Wind, Leaf } from "lucide-react";
+import { useThresholds } from "./ThresholdContext";
+import { useUnits } from "./UnitContext";
+import { sendThresholdsAndSetpoints } from "../services/aws-data-service";
+import { toast } from "sonner";
+
+interface LocalThresholdValues {
+  ec: { lower: string; upper: string };
+  ph: { lower: string; upper: string };
+  temperature: { lower: string; upper: string };
+  o2: { lower: string; upper: string };
+  waterLevel: { lower: string; upper: string };
+  transpiration: { lower: string; upper: string };
+}
+
+interface LocalSetpointValues {
+  ec: string;
+  ph: string;
+}
+
+function celsiusToFahrenheit(value: number) {
+  return (value * 9) / 5 + 32;
+}
+
+function fahrenheitToCelsius(value: number) {
+  return ((value - 32) * 5) / 9;
+}
+
+function cmToInches(value: number) {
+  return value / 2.54;
+}
+
+function inchesToCm(value: number) {
+  return value * 2.54;
+}
+
+export function ThresholdPage() {
+  const {
+    thresholds: contextThresholds,
+    setThresholds: setContextThresholds,
+    setpoints: contextSetpoints,
+    setSetpoints: setContextSetpoints,
+    saveThresholdSettings,
+    loading,
+  } = useThresholds();
+
+  const { tempUnit, setTempUnit, waterLevelUnit, setWaterLevelUnit } = useUnits();
+
+  const [localThresholds, setLocalThresholds] = useState<LocalThresholdValues>({
+    ec: { lower: "1000", upper: "1800" },
+    ph: { lower: "6.5", upper: "8.5" },
+    temperature: { lower: "18.3", upper: "26.7" },
+    o2: { lower: "6", upper: "12" },
+    waterLevel: { lower: "70", upper: "95" },
+    transpiration: { lower: "2", upper: "5" },
+  });
+
+  const [localSetpoints, setLocalSetpoints] = useState<LocalSetpointValues>({
+    ec: "1500",
+    ph: "7.0",
+  });
+
+  useEffect(() => {
+    setLocalThresholds({
+      ec: {
+        lower: contextThresholds.ec.lower.toString(),
+        upper: contextThresholds.ec.upper.toString(),
+      },
+      ph: {
+        lower: contextThresholds.ph.lower.toString(),
+        upper: contextThresholds.ph.upper.toString(),
+      },
+      temperature: {
+        lower: contextThresholds.temperature.lower.toString(),
+        upper: contextThresholds.temperature.upper.toString(),
+      },
+      o2: {
+        lower: contextThresholds.o2.lower.toString(),
+        upper: contextThresholds.o2.upper.toString(),
+      },
+      waterLevel: {
+        lower: contextThresholds.waterLevel.lower.toString(),
+        upper: contextThresholds.waterLevel.upper.toString(),
+      },
+      transpiration: {
+        lower: contextThresholds.transpiration.lower.toString(),
+        upper: contextThresholds.transpiration.upper.toString(),
+      },
+    });
+
+    setLocalSetpoints({
+      ec: contextSetpoints.ec.toString(),
+      ph: contextSetpoints.ph.toString(),
+    });
+  }, [contextThresholds, contextSetpoints]);
+
+  const validationErrors = useMemo(() => {
+    const errors: Partial<Record<keyof LocalThresholdValues, string>> = {};
+    const params: (keyof LocalThresholdValues)[] = ['ec', 'ph', 'temperature', 'o2', 'waterLevel', 'transpiration'];
+    for (const param of params) {
+      const lower = parseFloat(localThresholds[param].lower);
+      const upper = parseFloat(localThresholds[param].upper);
+      if (!isNaN(lower) && !isNaN(upper) && lower > upper) {
+        errors[param] = 'Lower threshold cannot be greater than upper threshold';
+      }
+    }
+    return errors;
+  }, [localThresholds]);
+
+  const hasErrors = Object.keys(validationErrors).length > 0;
+
+  const displayedThresholds = useMemo(() => {
+    const tempLowerC = parseFloat(localThresholds.temperature.lower);
+    const tempUpperC = parseFloat(localThresholds.temperature.upper);
+    const waterLowerCm = parseFloat(localThresholds.waterLevel.lower);
+    const waterUpperCm = parseFloat(localThresholds.waterLevel.upper);
+
+    return {
+      ec: localThresholds.ec,
+      ph: localThresholds.ph,
+      temperature: {
+        lower:
+          tempUnit === "F" && !isNaN(tempLowerC)
+            ? celsiusToFahrenheit(tempLowerC).toFixed(1)
+            : localThresholds.temperature.lower,
+        upper:
+          tempUnit === "F" && !isNaN(tempUpperC)
+            ? celsiusToFahrenheit(tempUpperC).toFixed(1)
+            : localThresholds.temperature.upper,
+      },
+      o2: localThresholds.o2,
+      waterLevel: {
+        lower:
+          waterLevelUnit === "in" && !isNaN(waterLowerCm)
+            ? cmToInches(waterLowerCm).toFixed(1)
+            : localThresholds.waterLevel.lower,
+        upper:
+          waterLevelUnit === "in" && !isNaN(waterUpperCm)
+            ? cmToInches(waterUpperCm).toFixed(1)
+            : localThresholds.waterLevel.upper,
+      },
+    };
+  }, [localThresholds, tempUnit, waterLevelUnit]);
+
+  const handleInputChange = (
+    parameter: keyof LocalThresholdValues,
+    type: "lower" | "upper",
+    value: string
+  ) => {
+    let convertedValue = value;
+
+    if (parameter === "temperature" && tempUnit === "F") {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        convertedValue = fahrenheitToCelsius(numValue).toFixed(1);
+      }
+    } else if (parameter === "waterLevel" && waterLevelUnit === "in") {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        convertedValue = inchesToCm(numValue).toFixed(1);
+      }
+    }
+
+    setLocalThresholds((prev) => ({
+      ...prev,
+      [parameter]: {
+        ...prev[parameter],
+        [type]: convertedValue,
+      },
+    }));
+  };
+
+  const handleSaveAll = async () => {
+    if (hasErrors) {
+      toast.error('Please fix validation errors before saving.');
+      return;
+    }
+
+    const thresholds = {
+      ec: {
+        lower: parseFloat(localThresholds.ec.lower) || 1000,
+        upper: parseFloat(localThresholds.ec.upper) || 1800,
+      },
+      ph: {
+        lower: parseFloat(localThresholds.ph.lower) || 6.5,
+        upper: parseFloat(localThresholds.ph.upper) || 8.5,
+      },
+      temperature: {
+        lower: parseFloat(localThresholds.temperature.lower) || 18.3,
+        upper: parseFloat(localThresholds.temperature.upper) || 26.7,
+      },
+      o2: {
+        lower: parseFloat(localThresholds.o2.lower) || 6,
+        upper: parseFloat(localThresholds.o2.upper) || 12,
+      },
+      waterLevel: {
+        lower: parseFloat(localThresholds.waterLevel.lower) || 70,
+        upper: parseFloat(localThresholds.waterLevel.upper) || 95,
+      },
+      transpiration: {
+        lower: parseFloat(localThresholds.transpiration.lower) || 2,
+        upper: parseFloat(localThresholds.transpiration.upper) || 5,
+      },
+    };
+
+    const setpoints = {
+      ec: parseFloat(localSetpoints.ec) || 1500,
+      ph: parseFloat(localSetpoints.ph) || 7.0,
+    };
+
+    setContextThresholds(thresholds);
+    setContextSetpoints(setpoints);
+
+    toast.loading("Saving to cloud...");
+
+    const dbSuccess = await saveThresholdSettings(thresholds, setpoints);
+
+    if (!dbSuccess) {
+      toast.dismiss();
+      toast.error("Failed to save settings to database");
+      return;
+    }
+
+    const result = await sendThresholdsAndSetpoints(thresholds, setpoints);
+
+    toast.dismiss();
+
+    if (result.success) {
+      toast.success("All settings saved and sent to microcontroller successfully!");
+    } else {
+      toast.error(`Saved to database, but failed to send to device: ${result.error}`);
+    }
+  };
+
+  const handleReset = () => {
+    setLocalThresholds({
+      ec: { lower: "1000", upper: "1800" },
+      ph: { lower: "6.5", upper: "8.5" },
+      temperature: { lower: "18.3", upper: "26.7" },
+      o2: { lower: "6", upper: "12" },
+      waterLevel: { lower: "70", upper: "95" },
+      transpiration: { lower: "2", upper: "5" },
+    });
+
+    setLocalSetpoints({
+      ec: "1500",
+      ph: "7.0",
+    });
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-2xl">Controls</h2>
+        <p className="text-muted-foreground">
+          Configure setpoints and threshold boundaries for water quality parameters.
+        </p>
+      </div>
+
+      {loading && (
+        <div className="text-sm text-muted-foreground">
+          Loading settings from cloud...
+        </div>
+      )}
+
+      <div className="space-y-4">
+        <h3 className="text-lg">Setpoints</h3>
+        <p className="text-sm text-muted-foreground">
+          Set target values for automated dosing control
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Droplets className="w-5 h-5 text-primary" />
+                pH Setpoint
+              </CardTitle>
+              <CardDescription>Target pH value for dosing control</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="ph-setpoint">pH Setpoint</Label>
+                <Input
+                  id="ph-setpoint"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="14"
+                  value={localSetpoints.ph}
+                  onChange={(e) =>
+                    setLocalSetpoints((prev) => ({ ...prev, ph: e.target.value }))
+                  }
+                  placeholder="e.g., 7.0"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" />
+                EC Setpoint
+              </CardTitle>
+              <CardDescription>Electrical Conductivity (μS/cm)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ec-setpoint">EC Setpoint (μS/cm)</Label>
+                <Input
+                  id="ec-setpoint"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={localSetpoints.ec}
+                  onChange={(e) =>
+                    setLocalSetpoints((prev) => ({ ...prev, ec: e.target.value }))
+                  }
+                  placeholder="e.g., 1500"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="space-y-4 pt-6 border-t border-border">
+        <h3 className="text-lg">Threshold Settings</h3>
+        <p className="text-sm text-muted-foreground">
+          Set the lower and upper boundaries for each water quality parameter.
+          The system will trigger alerts when values fall outside these ranges.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-primary" />
+                EC
+              </CardTitle>
+              <CardDescription>Electrical Conductivity (μS/cm)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ec-lower">Lower Threshold</Label>
+                <Input
+                  id="ec-lower"
+                  type="number"
+                  value={displayedThresholds.ec.lower}
+                  onChange={(e) => handleInputChange("ec", "lower", e.target.value)}
+                  placeholder="e.g., 1000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ec-upper">Upper Threshold</Label>
+                <Input
+                  id="ec-upper"
+                  type="number"
+                  value={displayedThresholds.ec.upper}
+                  onChange={(e) => handleInputChange("ec", "upper", e.target.value)}
+                  placeholder="e.g., 1800"
+                />
+              </div>
+              {validationErrors.ec && (
+                <p className="text-sm text-destructive">{validationErrors.ec}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Droplets className="w-5 h-5 text-primary" />
+                pH
+              </CardTitle>
+              <CardDescription>pH Level</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ph-lower">Lower Threshold</Label>
+                <Input
+                  id="ph-lower"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.ph.lower}
+                  onChange={(e) => handleInputChange("ph", "lower", e.target.value)}
+                  placeholder="e.g., 6.5"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ph-upper">Upper Threshold</Label>
+                <Input
+                  id="ph-upper"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.ph.upper}
+                  onChange={(e) => handleInputChange("ph", "upper", e.target.value)}
+                  placeholder="e.g., 8.5"
+                />
+              </div>
+              {validationErrors.ph && (
+                <p className="text-sm text-destructive">{validationErrors.ph}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Thermometer className="w-5 h-5 text-primary" />
+                Temperature
+              </CardTitle>
+              <CardDescription>Water Temperature</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Unit:</span>
+                <ToggleGroup
+                  type="single"
+                  value={tempUnit}
+                  onValueChange={(value) => value && setTempUnit(value as "F" | "C")}
+                  size="sm"
+                >
+                  <ToggleGroupItem value="F" aria-label="Fahrenheit">
+                    °F
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="C" aria-label="Celsius">
+                    °C
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="temp-lower">Lower Threshold (°{tempUnit})</Label>
+                <Input
+                  id="temp-lower"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.temperature.lower}
+                  onChange={(e) => handleInputChange("temperature", "lower", e.target.value)}
+                  placeholder={tempUnit === "C" ? "e.g., 18.3" : "e.g., 65"}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="temp-upper">Upper Threshold (°{tempUnit})</Label>
+                <Input
+                  id="temp-upper"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.temperature.upper}
+                  onChange={(e) => handleInputChange("temperature", "upper", e.target.value)}
+                  placeholder={tempUnit === "C" ? "e.g., 26.7" : "e.g., 80"}
+                />
+              </div>
+              {validationErrors.temperature && (
+                <p className="text-sm text-destructive">{validationErrors.temperature}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Waves className="w-5 h-5 text-primary" />
+                Water Level
+              </CardTitle>
+              <CardDescription>Reservoir Level</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Unit:</span>
+                <ToggleGroup
+                  type="single"
+                  value={waterLevelUnit}
+                  onValueChange={(value) =>
+                    value && setWaterLevelUnit(value as "cm" | "in")
+                  }
+                  size="sm"
+                >
+                  <ToggleGroupItem value="cm" aria-label="Centimeters">
+                    cm
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="in" aria-label="Inches">
+                    in
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="water-lower">Lower Threshold ({waterLevelUnit})</Label>
+                <Input
+                  id="water-lower"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.waterLevel.lower}
+                  onChange={(e) => handleInputChange("waterLevel", "lower", e.target.value)}
+                  placeholder={waterLevelUnit === "cm" ? "e.g., 70" : "e.g., 27.6"}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="water-upper">Upper Threshold ({waterLevelUnit})</Label>
+                <Input
+                  id="water-upper"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.waterLevel.upper}
+                  onChange={(e) => handleInputChange("waterLevel", "upper", e.target.value)}
+                  placeholder={waterLevelUnit === "cm" ? "e.g., 95" : "e.g., 37.4"}
+                />
+              </div>
+              {validationErrors.waterLevel && (
+                <p className="text-sm text-destructive">{validationErrors.waterLevel}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wind className="w-5 h-5 text-primary" />
+                O₂
+              </CardTitle>
+              <CardDescription>Dissolved Oxygen (%)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="o2-lower">Lower Threshold (%)</Label>
+                <Input
+                  id="o2-lower"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.o2.lower}
+                  onChange={(e) => handleInputChange("o2", "lower", e.target.value)}
+                  placeholder="e.g., 6"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="o2-upper">Upper Threshold (%)</Label>
+                <Input
+                  id="o2-upper"
+                  type="number"
+                  step="0.1"
+                  value={displayedThresholds.o2.upper}
+                  onChange={(e) => handleInputChange("o2", "upper", e.target.value)}
+                  placeholder="e.g., 12"
+                />
+              </div>
+              {validationErrors.o2 && (
+                <p className="text-sm text-destructive">{validationErrors.o2}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Leaf className="w-5 h-5 text-primary" />
+                Transpiration Rate
+              </CardTitle>
+              <CardDescription>Water Usage (L/m²/day)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="transpiration-lower">Lower Threshold (L/m²/day)</Label>
+                <Input
+                  id="transpiration-lower"
+                  type="number"
+                  step="0.1"
+                  value={localThresholds.transpiration.lower}
+                  onChange={(e) => handleInputChange("transpiration", "lower", e.target.value)}
+                  placeholder="e.g., 2.0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="transpiration-upper">Upper Threshold (L/m²/day)</Label>
+                <Input
+                  id="transpiration-upper"
+                  type="number"
+                  step="0.1"
+                  value={localThresholds.transpiration.upper}
+                  onChange={(e) => handleInputChange("transpiration", "upper", e.target.value)}
+                  placeholder="e.g., 5.0"
+                />
+              </div>
+              {validationErrors.transpiration && (
+                <p className="text-sm text-destructive">{validationErrors.transpiration}</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <div className="flex gap-4 pt-6">
+        <Button onClick={handleSaveAll} size="lg" className="flex-1" disabled={loading || hasErrors}>
+          Save All Settings
+        </Button>
+        <Button onClick={handleReset} variant="outline" size="lg" disabled={loading}>
+          Reset to Defaults
+        </Button>
+      </div>
+    </div>
+  );
+}

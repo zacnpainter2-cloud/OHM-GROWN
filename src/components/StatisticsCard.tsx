@@ -1,0 +1,114 @@
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+
+interface StatisticsCardProps {
+  title: string;
+  data: number[];
+  unit: string;
+  color?: string;
+  decimals?: number;
+  rangeLabel?: string;
+}
+
+export function StatisticsCard({ title, data, unit, color = "teal", decimals = 1, rangeLabel = "Last 24 Hours" }: StatisticsCardProps) {
+  if (data.length === 0) {
+    return (
+      <Card className={`border-2 border-${color}-200 dark:border-${color}-800 shadow-lg`}>
+        <CardHeader>
+          <CardTitle className="text-lg">{title} Statistics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No data available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const avg = data.reduce((sum, val) => sum + val, 0) / data.length;
+  const latest = data[data.length - 1];
+  
+  // Calculate trend (comparing first half to second half of data)
+  const midpoint = Math.floor(data.length / 2);
+  const firstHalfAvg = data.slice(0, midpoint).reduce((sum, val) => sum + val, 0) / midpoint;
+  const secondHalfAvg = data.slice(midpoint).reduce((sum, val) => sum + val, 0) / (data.length - midpoint);
+  const trend = secondHalfAvg - firstHalfAvg;
+  const trendPercent = Math.abs((trend / firstHalfAvg) * 100);
+
+  const formatValue = (value: number) => {
+    return value.toFixed(decimals);
+  };
+
+  return (
+    <Card className={`border-2 border-${color}-200 dark:border-${color}-800 shadow-lg`}>
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center justify-between">
+          <div>
+            <span>{title} Statistics</span>
+            <p className="text-sm text-muted-foreground font-normal mt-1">{rangeLabel}</p>
+          </div>
+          <span className="text-sm text-muted-foreground font-normal">
+            {data.length} readings
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-6">
+          {/* Minimum */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Minimum</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {formatValue(min)}
+              <span className="text-sm ml-1 text-muted-foreground">{unit}</span>
+            </p>
+          </div>
+
+          {/* Average */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Average</p>
+            <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">
+              {formatValue(avg)}
+              <span className="text-sm ml-1 text-muted-foreground">{unit}</span>
+            </p>
+          </div>
+
+          {/* Maximum */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Maximum</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {formatValue(max)}
+              <span className="text-sm ml-1 text-muted-foreground">{unit}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Trend Indicator */}
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center gap-2">
+            {Math.abs(trend) < 0.01 ? (
+              <>
+                <Minus className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-muted-foreground">Stable trend</span>
+              </>
+            ) : trend > 0 ? (
+              <>
+                <TrendingUp className="w-4 h-4 text-red-500" />
+                <span className="text-sm text-muted-foreground">
+                  Increasing trend <span className="font-semibold text-red-600 dark:text-red-400">+{trendPercent.toFixed(1)}%</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <TrendingDown className="w-4 h-4 text-blue-500" />
+                <span className="text-sm text-muted-foreground">
+                  Decreasing trend <span className="font-semibold text-blue-600 dark:text-blue-400">-{trendPercent.toFixed(1)}%</span>
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
