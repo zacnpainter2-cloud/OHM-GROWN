@@ -219,8 +219,8 @@ export function AlertProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Check Water Flow (1 = issue/no flow, 0 = ok)
-    if (reading.waterFlowOk !== undefined && reading.waterFlowOk === 1) {
+    // Check Water Flow (1 = ok/flowing, 0 = issue/no flow)
+    if (reading.waterFlowOk !== undefined && reading.waterFlowOk === 0) {
       const alertType = "waterFlow";
       currentAlertTypes.add(alertType);
       newAlerts.push({

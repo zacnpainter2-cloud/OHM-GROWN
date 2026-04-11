@@ -85,8 +85,8 @@ export function WaterLevelPage() {
     return sum / sevenDayReadings.length;
   }, [readings, unit]);
 
-  const minRange = unit === "cm" ? thresholds.waterLevel.lower : thresholds.waterLevel.lower / 2.54;
-  const maxRange = unit === "cm" ? thresholds.waterLevel.upper : thresholds.waterLevel.upper / 2.54;
+  const minRange = Number((unit === "cm" ? thresholds.waterLevel.lower : thresholds.waterLevel.lower / 2.54).toFixed(1));
+  const maxRange = Number((unit === "cm" ? thresholds.waterLevel.upper : thresholds.waterLevel.upper / 2.54).toFixed(1));
 
   // Loading state
   if (isLoading && readings.length === 0) {
