@@ -58,20 +58,7 @@ export function PHPage() {
 
   // Detect pH dosing start/stop events
   const dosingEvents = useMemo(() => {
-    const events: Array<{ time: string; type: 'start' | 'stop' | 'active'; timestamp: number }> = [];
-    
-    console.log('pH Chart Data:', chartData);
-    console.log('First data point phDosing:', chartData.length > 0 ? chartData[0].phDosing : 'no data');
-    
-    // Check if dosing is already active at the start of the dataset
-    if (chartData.length > 0 && chartData[0].phDosing) {
-      events.push({ 
-        time: chartData[0].time, 
-        type: 'active', 
-        timestamp: chartData[0].timestamp 
-      });
-      console.log('Added ACTIVE marker at:', chartData[0].time);
-    }
+    const events: Array<{ time: string; type: 'start' | 'stop'; timestamp: number }> = [];
     
     for (let i = 1; i < chartData.length; i++) {
       const prev = chartData[i - 1];
@@ -80,16 +67,13 @@ export function PHPage() {
       // Dosing started
       if (!prev.phDosing && curr.phDosing) {
         events.push({ time: curr.time, type: 'start', timestamp: curr.timestamp });
-        console.log('Added START event at:', curr.time);
       }
       // Dosing stopped
       if (prev.phDosing && !curr.phDosing) {
         events.push({ time: curr.time, type: 'stop', timestamp: curr.timestamp });
-        console.log('Added STOP event at:', curr.time);
       }
     }
     
-    console.log('pH dosing events:', events);
     return events;
   }, [chartData]);
   
@@ -194,7 +178,7 @@ export function PHPage() {
         <CardHeader>
           <CardTitle>pH Monitoring</CardTitle>
           <CardDescription>
-            pH level — {rangeLabelMap[timeRange].toLowerCase()}. Vertical lines show dosing start (green), stop (red), and already active (blue).
+            pH level — {rangeLabelMap[timeRange].toLowerCase()}. Vertical lines show dosing start (green) and stop (red).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -235,18 +219,6 @@ export function PHPage() {
                   stroke="#10b981"
                   strokeWidth={2}
                   label={{ value: 'Start', position: 'top', fill: '#10b981', fontSize: 12 }}
-                />
-              ))}
-              
-              {/* Already active marker (blue) */}
-              {dosingEvents.filter(e => e.type === 'active').map((event, idx) => (
-                <ReferenceLine
-                  key={`active-${idx}`}
-                  x={event.timestamp}
-                  stroke="#3b82f6"
-                  strokeDasharray="5 5"
-                  strokeWidth={2}
-                  label={{ value: 'Active', position: 'top', fill: '#3b82f6', fontSize: 12 }}
                 />
               ))}
               

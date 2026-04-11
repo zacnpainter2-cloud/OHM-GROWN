@@ -295,18 +295,6 @@ function DashboardContent() {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab("o2")}
-                  className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors text-sm ${
-                    activeTab === "o2"
-                      ? "bg-sidebar-accent text-white"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-                  }`}
-                >
-                  <Wind className="w-4 h-4 text-emerald-400" />
-                  O2
-                </button>
-
-                <button
                   onClick={() => setActiveTab("water")}
                   className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors text-sm ${
                     activeTab === "water"
@@ -316,18 +304,6 @@ function DashboardContent() {
                 >
                   <Waves className="w-4 h-4 text-emerald-400" />
                   Water Level
-                </button>
-
-                <button
-                  onClick={() => setActiveTab("transpiration")}
-                  className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors text-sm ${
-                    activeTab === "transpiration"
-                      ? "bg-sidebar-accent text-white"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-                  }`}
-                >
-                  <Leaf className="w-4 h-4 text-emerald-400" />
-                  Transpiration Rate
                 </button>
               </div>
             )}
@@ -400,18 +376,6 @@ function DashboardContent() {
           >
             <Activity className="w-5 h-5 text-cyan-400" />
             Correlation Analysis
-          </button>
-
-          <button
-            onClick={() => setActiveTab("manual")}
-            className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
-              activeTab === "manual"
-                ? "bg-sidebar-accent text-white"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-            }`}
-          >
-            <BookOpen className="w-5 h-5 text-emerald-400" />
-            User Manual
           </button>
 
           <button
@@ -517,11 +481,9 @@ function DashboardContent() {
           {activeTab === "ec" && <ECPage />}
           {activeTab === "ph" && <PHPage />}
           {activeTab === "temp" && <TemperaturePage />}
-          {activeTab === "o2" && <O2Page />}
           {activeTab === "water" && <WaterLevelPage />}
-          {activeTab === "transpiration" && <TranspirationRatePage />}
           {activeTab === "thresholds" && <ThresholdPage />}
-          {activeTab === "manual" && <UserManualPage />}
+          {activeTab === "manual" && <div className="max-w-7xl mx-auto"><p>Page removed.</p></div>}
           {activeTab === "export" && <ExportPage />}
           {activeTab === "dosingHistory" && <DosingHistoryPage />}
           {activeTab === "alertHistory" && <AlertHistoryPage />}

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import type { SensorReading } from "../types/sensor-data";
 import { supabase } from "../lib/supabaseClient";
 import { useProject } from "./ProjectContext";
+import { useThresholds } from "./ThresholdContext";
 
 export interface DosingEvent {
   id: string;
@@ -22,6 +23,7 @@ const DosingContext = createContext<DosingContextType | undefined>(undefined);
 export function DosingProvider({ children }: { children: ReactNode }) {
   const [dosingHistory, setDosingHistory] = useState<DosingEvent[]>([]);
   const { viewingProject, activeProject } = useProject();
+  const { thresholds } = useThresholds();
 
   // Track last flag states in refs (not persisted — only matters within a session)
   const [lastECFlag, setLastECFlag] = useState<number | undefined>(undefined);
@@ -85,9 +87,12 @@ export function DosingProvider({ children }: { children: ReactNode }) {
     }
 
     // Check pH dosing flag (0 = not dosing, 1 = dosing)
+    // Only log pH dosing when pH is below lower threshold (too low)
     if (reading.phDosingFlag !== undefined) {
-      // Detect transition from 0 to 1 (dosing started) OR first reading with flag=1
-      if (reading.phDosingFlag === 1 && (lastPHFlag === undefined || lastPHFlag === 0)) {
+      const phTooLow = reading.ph < thresholds.ph.lower;
+
+      // Detect transition from 0 to 1 (dosing started) — only when pH is too low
+      if (reading.phDosingFlag === 1 && (lastPHFlag === undefined || lastPHFlag === 0) && phTooLow) {
         newEvents.push({
           id: `ph-${now}`,
           timestamp: now,
@@ -126,7 +131,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         });
       }
     }
-  }, [lastECFlag, lastPHFlag, activeProject]);
+  }, [lastECFlag, lastPHFlag, activeProject, thresholds]);
 
   const clearDosingHistory = useCallback(() => {
     setDosingHistory([]);

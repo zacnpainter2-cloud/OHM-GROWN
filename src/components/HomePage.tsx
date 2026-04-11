@@ -206,50 +206,6 @@ export function HomePage() {
           </CardContent>
         </Card>
 
-        {/* O2 Graph */}
-        <Card>
-          <CardHeader>
-            <CardTitle>O2 (Dissolved Oxygen)</CardTitle>
-            <CardDescription>Last 7 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  dataKey="date" 
-                  className="text-xs"
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                />
-                <YAxis 
-                  className="text-xs" 
-                  domain={[0, (max: number) => Math.max(1, Math.ceil(max * 1.05))]}
-                  tickFormatter={(value) => value.toFixed(1)}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
-                  }}
-                  formatter={(value: number) => [value.toFixed(1) + ' %', 'O2']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="o2" 
-                  stroke="#2dd4bf" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
         {/* Water Level Graph */}
         <Card>
           <CardHeader>
@@ -285,50 +241,6 @@ export function HomePage() {
                   type="monotone" 
                   dataKey="waterLevel" 
                   stroke="#16a34a" 
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  isAnimationActive={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Transpiration Rate Graph */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Transpiration Rate</CardTitle>
-            <CardDescription>Last 7 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  dataKey="date" 
-                  className="text-xs"
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                />
-                <YAxis 
-                  className="text-xs" 
-                  domain={[0, (max: number) => Math.ceil(max + 1)]}
-                  tickFormatter={(value) => value.toFixed(1)}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))'
-                  }}
-                  formatter={(value: number) => [value.toFixed(1) + ' L/m²/day', 'Transpiration Rate']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="transpirationRate" 
-                  stroke="#10b981" 
                   strokeWidth={2}
                   dot={{ r: 4 }}
                   isAnimationActive={false}

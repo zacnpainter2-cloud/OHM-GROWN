@@ -58,16 +58,7 @@ export function ECPage() {
 
   // Detect EC dosing start/stop events
   const dosingEvents = useMemo(() => {
-    const events: Array<{ time: string; type: 'start' | 'stop' | 'active'; timestamp: number }> = [];
-    
-    // Check if dosing is already active at the start of the dataset
-    if (chartData.length > 0 && chartData[0].ecDosing) {
-      events.push({ 
-        time: chartData[0].time, 
-        type: 'active', 
-        timestamp: chartData[0].timestamp 
-      });
-    }
+    const events: Array<{ time: string; type: 'start' | 'stop'; timestamp: number }> = [];
     
     for (let i = 1; i < chartData.length; i++) {
       const prev = chartData[i - 1];
@@ -195,7 +186,7 @@ export function ECPage() {
           <CardTitle>EC Monitoring</CardTitle>
           <CardDescription>
             Electrical Conductivity — {rangeLabelMap[timeRange].toLowerCase()}.
-            {" "}Vertical lines show dosing start (green), stop (red), and already active (blue).
+            {" "}Vertical lines show dosing start (green) and stop (red).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -236,18 +227,6 @@ export function ECPage() {
                   stroke="#10b981"
                   strokeWidth={2}
                   label={{ value: 'Start', position: 'top', fill: '#10b981', fontSize: 12 }}
-                />
-              ))}
-              
-              {/* Already active marker (blue) */}
-              {dosingEvents.filter(e => e.type === 'active').map((event, idx) => (
-                <ReferenceLine
-                  key={`active-${idx}`}
-                  x={event.timestamp}
-                  stroke="#3b82f6"
-                  strokeDasharray="5 5"
-                  strokeWidth={2}
-                  label={{ value: 'Active', position: 'top', fill: '#3b82f6', fontSize: 12 }}
                 />
               ))}
               

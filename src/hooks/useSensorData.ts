@@ -31,27 +31,21 @@ async function saveReadingToSupabase(reading: SensorReading, projectId: number |
       return;
     }
 
-    // Check if the most recent reading has the same sensor values
-    const { data: latest, error: checkError } = await supabase
+    // Check if a reading with this timestamp already exists
+    const readingTime = new Date(reading.timestamp).toISOString();
+    const { data: existing, error: checkError } = await supabase
       .from("measurements")
-      .select("ec, ph, temperature, dissolved_oxygen, water_level, transpiration_rate")
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .single();
+      .select("id")
+      .eq("recorded_at", readingTime)
+      .limit(1);
 
-    if (checkError && checkError.code !== "PGRST116") {
+    if (checkError) {
       console.error("Supabase duplicate check failed:", checkError);
       return;
     }
 
-    if (latest &&
-      latest.ec === reading.ec &&
-      latest.ph === reading.ph &&
-      latest.temperature === reading.temperature &&
-      latest.dissolved_oxygen === reading.o2 &&
-      latest.water_level === reading.waterLevel &&
-      latest.transpiration_rate === reading.transpirationRate) {
-      return; // sensor values unchanged, skip saving
+    if (existing && existing.length > 0) {
+      return; // already saved this timestamp
     }
 
     const { error } = await supabase.from("measurements").insert([
