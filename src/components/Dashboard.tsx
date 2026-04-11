@@ -59,7 +59,7 @@ function DashboardContent() {
   const [newProjectName, setNewProjectName] = useState("");
 
   const { logout } = useAuth();
-  const { alerts, checkAlerts, maintenanceMode } = useAlerts();
+  const { alerts, checkAlerts } = useAlerts();
   const { checkDosingEvents } = useDosing();
   const { thresholds } = useThresholds();
   const { projects, activeProject, viewingProject, setViewingProject, createNewProject, deleteProject, isViewingOldProject } = useProject();
@@ -437,20 +437,7 @@ function DashboardContent() {
         </header>
 
         <div className="p-4 space-y-2 bg-gradient-to-r from-white via-teal-50/50 to-cyan-50/50 dark:from-gray-950 dark:via-teal-950/50 dark:to-cyan-950/50 border-b border-teal-100 dark:border-teal-800">
-          {maintenanceMode && (
-            <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-300 py-2">
-              <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <AlertTitle className="text-amber-900 dark:text-amber-300 text-sm">
-                Maintenance mode on
-              </AlertTitle>
-              <AlertDescription className="text-amber-700 dark:text-amber-400 text-sm">
-                All alerts are currently disabled for system maintenance
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {!maintenanceMode &&
-            hasAlerts &&
+          {hasAlerts &&
             alerts.map((alert, index) => (
               <Alert
                 key={`${alert.type}-${index}-${alertMessages}`}
@@ -462,8 +449,7 @@ function DashboardContent() {
               </Alert>
             ))}
 
-          {!maintenanceMode &&
-            !hasAlerts && (
+          {!hasAlerts && (
               <Alert className="border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-300 py-2">
                 <AlertCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <AlertTitle className="text-emerald-900 dark:text-emerald-300 text-sm">

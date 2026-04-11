@@ -11,7 +11,7 @@ import { useProject } from "./ProjectContext";
 
 export function HomePage() {
   const { tempUnit, waterLevelUnit } = useUnits();
-  const { maintenanceMode, setMaintenanceMode } = useAlerts();
+  const { } = useAlerts();
   const { viewingProject } = useProject();
   const { readings, latestReading, isLoading, error } = useSensorData(viewingProject?.id);
 
@@ -250,32 +250,6 @@ export function HomePage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Calibration Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Controls</CardTitle>
-          <CardDescription>
-            Maintenance settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <Button 
-              variant={maintenanceMode ? "default" : "outline"}
-              onClick={() => setMaintenanceMode(!maintenanceMode)}
-              className={maintenanceMode 
-                ? "flex-1 min-w-[200px] h-20 flex flex-col gap-2 bg-amber-600 hover:bg-amber-700 text-white" 
-                : "flex-1 min-w-[200px] h-20 flex flex-col gap-2"
-              }
-            >
-              <Wrench className="w-6 h-6" />
-              Maintenance Mode
-              {maintenanceMode && <span className="text-xs">ON</span>}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

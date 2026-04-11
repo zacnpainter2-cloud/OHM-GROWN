@@ -278,7 +278,7 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
           const batch = rows.slice(i, i + BATCH_SIZE);
           const { error: insertErr } = await supabase
             .from("measurements")
-            .upsert(batch, { onConflict: "recorded_at", ignoreDuplicates: true });
+            .insert(batch);
 
           if (insertErr) {
             console.error("Backfill insert error:", insertErr);

@@ -36,8 +36,6 @@ interface AlertContextType {
   clearAlert: (id: string) => void;
   clearAllAlerts: () => void;
   clearAlertHistory: () => void;
-  maintenanceMode: boolean;
-  setMaintenanceMode: (enabled: boolean) => void;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
@@ -46,8 +44,6 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [alertHistory, setAlertHistory] = useState<AlertHistoryEntry[]>([]);
   const [lastDataTimestamp, setLastDataTimestamp] = useState<number>(Date.now());
-  const [maintenanceMode, setMaintenanceMode] = useState<boolean>(false);
-  const maintenanceModeRef = useRef<boolean>(false);
   const activeAlertsRef = useRef<Map<string, AlertHistoryEntry>>(new Map());
   const { viewingProject, activeProject } = useProject();
 
@@ -81,53 +77,9 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     })();
   }, [viewingProject]);
 
-  // Keep ref in sync with state
-  useEffect(() => {
-    maintenanceModeRef.current = maintenanceMode;
-    // Clear all alerts when entering maintenance mode
-    if (maintenanceMode) {
-      // End all active alerts
-      const now = Date.now();
-      const endedAlerts: AlertHistoryEntry[] = [];
-      activeAlertsRef.current.forEach((entry) => {
-        endedAlerts.push({
-          ...entry,
-          endTime: now,
-          duration: now - entry.startTime,
-        });
-      });
-      if (endedAlerts.length > 0) {
-        setAlertHistory((prev) => [...endedAlerts, ...prev].slice(0, 10000));
-        // Save ended alerts to Supabase
-        if (activeProject) {
-          endedAlerts.forEach((entry) => {
-            supabase.from("alert_history").insert([{
-              project_id: activeProject.id,
-              alert_type: entry.type,
-              severity: entry.severity,
-              message: entry.message,
-              start_time: new Date(entry.startTime).toISOString(),
-              end_time: new Date(now).toISOString(),
-              duration_ms: now - entry.startTime,
-            }]).then(({ error }) => {
-              if (error) console.error("Failed to save alert history:", error);
-            });
-          });
-        }
-      }
-      activeAlertsRef.current.clear();
-      setAlerts([]);
-    }
-  }, [maintenanceMode, activeProject]);
-
   // Check for network connectivity alert (no data for 10 minutes)
   useEffect(() => {
     const checkNetworkInterval = setInterval(() => {
-      // Skip network alerts in maintenance mode
-      if (maintenanceModeRef.current) {
-        return;
-      }
-
       const now = Date.now();
       const timeSinceLastData = now - lastDataTimestamp;
       const TEN_MINUTES = 10 * 60 * 1000;
@@ -161,11 +113,6 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   const checkAlerts = useCallback((reading: SensorReading, thresholds: ThresholdValues) => {
     // Update last data timestamp
     setLastDataTimestamp(reading.timestamp);
-
-    // Skip alert checking if in maintenance mode
-    if (maintenanceModeRef.current) {
-      return;
-    }
 
     const newAlerts: Alert[] = [];
     const now = Date.now();
@@ -372,7 +319,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   }, [alerts, alertHistory]); // re-derive when alerts or history change
 
   return (
-    <AlertContext.Provider value={{ alerts, alertHistory: fullAlertHistory, checkAlerts, clearAlert, clearAllAlerts, clearAlertHistory, maintenanceMode, setMaintenanceMode }}>
+    <AlertContext.Provider value={{ alerts, alertHistory: fullAlertHistory, checkAlerts, clearAlert, clearAllAlerts, clearAlertHistory }}>
       {children}
     </AlertContext.Provider>
   );
