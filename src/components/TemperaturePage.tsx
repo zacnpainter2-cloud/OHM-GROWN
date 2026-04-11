@@ -7,9 +7,11 @@ import { useUnits } from "./UnitContext";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
 import { useProject } from "./ProjectContext";
+import { useThresholds } from "./ThresholdContext";
 
 export function TemperaturePage() {
   const { viewingProject } = useProject();
+  const { thresholds } = useThresholds();
   const { readings, latestReading, isLoading } = useSensorData(viewingProject?.id);
   const { tempUnit, setTempUnit } = useUnits();
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
@@ -97,7 +99,7 @@ export function TemperaturePage() {
   
   const status = currentTemp !== null ? getStatus(currentTemp) : null;
   
-  const optimalRange = tempUnit === "C" ? "18 - 26" : "65 - 78";
+  const optimalRange = `${convertTemp(thresholds.temperature.lower).toFixed(1)} - ${convertTemp(thresholds.temperature.upper).toFixed(1)}`;
   
   if (isLoading && readings.length === 0) {
     return <div className="max-w-7xl mx-auto space-y-6">Loading...</div>;

@@ -96,7 +96,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
               id: "network-" + now,
               type: "network",
               severity: "critical",
-              message: "Communication",
+              message: "No Data Received — Check Network Connection",
               timestamp: now,
             },
           ];
@@ -121,12 +121,13 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     // Check Temperature
     if (reading.temperature < thresholds.temperature.lower || reading.temperature > thresholds.temperature.upper) {
       const alertType = "temperature";
+      const direction = reading.temperature < thresholds.temperature.lower ? "Too Low" : "Too High";
       currentAlertTypes.add(alertType);
       newAlerts.push({
         id: "temperature-" + now,
         type: alertType,
         severity: "critical",
-        message: "Temperature",
+        message: `Temperature ${direction}`,
         timestamp: now,
       });
 
@@ -136,7 +137,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           id: `history-${alertType}-${now}`,
           type: alertType,
           severity: "critical",
-          message: "Temperature out of range",
+          message: `Temperature ${direction}`,
           startTime: now,
         };
         activeAlertsRef.current.set(alertType, historyEntry);
@@ -146,12 +147,13 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     // Check Water Level
     if (reading.waterLevel < thresholds.waterLevel.lower || reading.waterLevel > thresholds.waterLevel.upper) {
       const alertType = "waterLevel";
+      const direction = reading.waterLevel < thresholds.waterLevel.lower ? "Too Low" : "Too High";
       currentAlertTypes.add(alertType);
       newAlerts.push({
         id: "waterLevel-" + now,
         type: alertType,
         severity: "critical",
-        message: "Water Level",
+        message: `Water Level ${direction}`,
         timestamp: now,
       });
 
@@ -160,7 +162,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           id: `history-${alertType}-${now}`,
           type: alertType,
           severity: "critical",
-          message: "Water Level out of range",
+          message: `Water Level ${direction}`,
           startTime: now,
         };
         activeAlertsRef.current.set(alertType, historyEntry);
@@ -170,12 +172,13 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     // Check EC
     if (reading.ec < thresholds.ec.lower || reading.ec > thresholds.ec.upper) {
       const alertType = "ec";
+      const direction = reading.ec < thresholds.ec.lower ? "Too Low" : "Too High";
       currentAlertTypes.add(alertType);
       newAlerts.push({
         id: "ec-" + now,
         type: alertType,
         severity: "critical",
-        message: "EC",
+        message: `EC ${direction}`,
         timestamp: now,
       });
 
@@ -184,7 +187,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           id: `history-${alertType}-${now}`,
           type: alertType,
           severity: "critical",
-          message: "EC out of range",
+          message: `EC ${direction}`,
           startTime: now,
         };
         activeAlertsRef.current.set(alertType, historyEntry);
@@ -194,12 +197,13 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     // Check pH
     if (reading.ph < thresholds.ph.lower || reading.ph > thresholds.ph.upper) {
       const alertType = "ph";
+      const direction = reading.ph < thresholds.ph.lower ? "Too Low" : "Too High";
       currentAlertTypes.add(alertType);
       newAlerts.push({
         id: "ph-" + now,
         type: alertType,
         severity: "critical",
-        message: "pH",
+        message: `pH ${direction}`,
         timestamp: now,
       });
 
@@ -208,7 +212,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           id: `history-${alertType}-${now}`,
           type: alertType,
           severity: "critical",
-          message: "pH out of range",
+          message: `pH ${direction}`,
           startTime: now,
         };
         activeAlertsRef.current.set(alertType, historyEntry);
@@ -223,7 +227,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         id: "waterFlow-" + now,
         type: alertType,
         severity: "critical",
-        message: "Water Flow",
+        message: "Water Flow Issue Detected (No Flow)",
         timestamp: now,
       });
 
@@ -232,7 +236,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
           id: `history-${alertType}-${now}`,
           type: alertType,
           severity: "critical",
-          message: "Water Flow issue detected (no flow)",
+          message: "Water Flow Issue Detected (No Flow)",
           startTime: now,
         };
         activeAlertsRef.current.set(alertType, historyEntry);

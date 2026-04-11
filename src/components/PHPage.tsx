@@ -6,9 +6,11 @@ import { useSensorData } from "../hooks/useSensorData";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
 import { useProject } from "./ProjectContext";
+import { useThresholds } from "./ThresholdContext";
 
 export function PHPage() {
   const { viewingProject } = useProject();
+  const { thresholds } = useThresholds();
   const { readings, latestReading, isLoading } = useSensorData(viewingProject?.id);
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");
@@ -163,7 +165,7 @@ export function PHPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl">5.5 - 6.5</span>
+              <span className="text-3xl">{thresholds.ph.lower} - {thresholds.ph.upper}</span>
               <span className="text-muted-foreground">pH</span>
             </div>
           </CardContent>

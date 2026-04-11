@@ -9,10 +9,12 @@ import { Loader2 } from "lucide-react";
 import { StatisticsCard } from "./StatisticsCard";
 import { useMemo } from "react";
 import { useProject } from "./ProjectContext";
+import { useThresholds } from "./ThresholdContext";
 
 export function WaterLevelPage() {
   const { waterLevelUnit: unit, setWaterLevelUnit } = useUnits();
   const { viewingProject } = useProject();
+  const { thresholds } = useThresholds();
   const { readings, latestReading, isLoading, error } = useSensorData(viewingProject?.id);
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");
@@ -83,8 +85,8 @@ export function WaterLevelPage() {
     return sum / sevenDayReadings.length;
   }, [readings, unit]);
 
-  const minRange = unit === "cm" ? 140 : 55;
-  const maxRange = unit === "cm" ? 160 : 63;
+  const minRange = unit === "cm" ? thresholds.waterLevel.lower : thresholds.waterLevel.lower / 2.54;
+  const maxRange = unit === "cm" ? thresholds.waterLevel.upper : thresholds.waterLevel.upper / 2.54;
 
   // Loading state
   if (isLoading && readings.length === 0) {

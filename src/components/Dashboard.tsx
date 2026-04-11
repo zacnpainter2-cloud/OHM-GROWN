@@ -11,7 +11,6 @@ import { ThresholdPage } from "./ThresholdPage";
 import { ExportPage } from "./ExportPage";
 import { DosingHistoryPage } from "./DosingHistoryPage";
 import { AlertHistoryPage } from "./AlertHistoryPage";
-import { CorrelationPage } from "./CorrelationPage";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -367,18 +366,6 @@ function DashboardContent() {
           </div>
 
           <button
-            onClick={() => setActiveTab("correlation")}
-            className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
-              activeTab === "correlation"
-                ? "bg-sidebar-accent text-white"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-            }`}
-          >
-            <Activity className="w-5 h-5 text-cyan-400" />
-            Correlation Analysis
-          </button>
-
-          <button
             onClick={() => setActiveTab("export")}
             className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
               activeTab === "export"
@@ -444,7 +431,7 @@ function DashboardContent() {
                 className="border-destructive bg-destructive/10 py-2"
               >
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle className="text-sm">{alert.type}</AlertTitle>
+                <AlertTitle className="text-sm">Alert</AlertTitle>
                 <AlertDescription className="text-sm">{alert.message}</AlertDescription>
               </Alert>
             ))}
@@ -473,7 +460,6 @@ function DashboardContent() {
           {activeTab === "export" && <ExportPage />}
           {activeTab === "dosingHistory" && <DosingHistoryPage />}
           {activeTab === "alertHistory" && <AlertHistoryPage />}
-          {activeTab === "correlation" && <CorrelationPage />}
         </div>
       </main>
     </div>

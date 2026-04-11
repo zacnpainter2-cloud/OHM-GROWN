@@ -6,9 +6,11 @@ import { useSensorData } from "../hooks/useSensorData";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
 import { useProject } from "./ProjectContext";
+import { useThresholds } from "./ThresholdContext";
 
 export function ECPage() {
   const { viewingProject } = useProject();
+  const { thresholds } = useThresholds();
   const { readings, latestReading, isLoading } = useSensorData(viewingProject?.id);
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");
@@ -170,7 +172,7 @@ export function ECPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl">1200 - 1800</span>
+              <span className="text-3xl">{thresholds.ec.lower} - {thresholds.ec.upper}</span>
               <span className="text-muted-foreground">μS/cm</span>
             </div>
           </CardContent>
