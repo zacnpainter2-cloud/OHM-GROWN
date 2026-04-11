@@ -333,38 +333,17 @@ function DashboardContent() {
             )}
           </div>
 
-          <div className="space-y-1">
-            <button
-              onClick={() => setIsSystemSettingsExpanded(!isSystemSettingsExpanded)}
-              className="w-full text-left px-4 py-3 rounded-lg flex items-center justify-between transition-colors text-sidebar-foreground hover:bg-sidebar-accent/20"
-            >
-              <div className="flex items-center gap-3">
-                <Settings className="w-5 h-5 text-emerald-400" />
-                <span>System Settings</span>
-              </div>
-              {isSystemSettingsExpanded ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-
-            {isSystemSettingsExpanded && (
-              <div className="ml-4 space-y-1 border-l-2 border-sidebar-border pl-2">
-                <button
-                  onClick={() => setActiveTab("thresholds")}
-                  className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors text-sm ${
-                    activeTab === "thresholds"
-                      ? "bg-sidebar-accent text-white"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-                  }`}
-                >
-                  <Settings className="w-4 h-4 text-emerald-400" />
-                  Controls
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => setActiveTab("thresholds")}
+            className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-colors ${
+              activeTab === "thresholds"
+                ? "bg-sidebar-accent text-white"
+                : "text-sidebar-foreground hover:bg-sidebar-accent/20"
+            }`}
+          >
+            <Wrench className="w-5 h-5 text-emerald-400" />
+            Controls
+          </button>
 
           <div className="space-y-1">
             <button

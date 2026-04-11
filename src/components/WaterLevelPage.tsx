@@ -49,6 +49,17 @@ export function WaterLevelPage() {
     }));
   }, [filteredReadings, unit]);
 
+  // Compute evenly-spaced ticks for the x-axis
+  const chartTicks = useMemo(() => {
+    if (chartData.length < 2) return [];
+    const min = chartData[0].timestamp;
+    const max = chartData[chartData.length - 1].timestamp;
+    const count = timeRange === "24h" ? 8 : timeRange === "7d" ? 7 : 10;
+    const step = (max - min) / count;
+    if (step <= 0) return [min];
+    return Array.from({ length: count + 1 }, (_, i) => Math.round(min + step * i));
+  }, [chartData, timeRange]);
+
   // Extract water level values for statistics
   const waterLevelValues = useMemo(() => {
     return filteredReadings.map((r) => unit === "cm" ? r.waterLevel : r.waterLevel / 2.54);
@@ -193,7 +204,7 @@ export function WaterLevelPage() {
                 domain={['dataMin', 'dataMax']}
                 className="text-xs"
                 tickFormatter={formatXAxis}
-                minTickGap={100}
+                ticks={chartTicks}
                 angle={-35}
                 textAnchor="end"
                 height={60}

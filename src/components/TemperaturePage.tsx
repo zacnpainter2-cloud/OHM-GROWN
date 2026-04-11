@@ -50,6 +50,17 @@ export function TemperaturePage() {
       timestamp: reading.timestamp,
     }));
   }, [filteredReadings, tempUnit]);
+
+  // Compute evenly-spaced ticks for the x-axis
+  const chartTicks = useMemo(() => {
+    if (chartData.length < 2) return [];
+    const min = chartData[0].timestamp;
+    const max = chartData[chartData.length - 1].timestamp;
+    const count = timeRange === "24h" ? 8 : timeRange === "7d" ? 7 : 10;
+    const step = (max - min) / count;
+    if (step <= 0) return [min];
+    return Array.from({ length: count + 1 }, (_, i) => Math.round(min + step * i));
+  }, [chartData, timeRange]);
   
   // Calculate 24h average
   const average24h = useMemo(() => {
@@ -192,7 +203,7 @@ export function TemperaturePage() {
                 domain={['dataMin', 'dataMax']}
                 className="text-xs"
                 tickFormatter={formatXAxis}
-                minTickGap={100}
+                ticks={chartTicks}
                 angle={-35}
                 textAnchor="end"
                 height={60}
