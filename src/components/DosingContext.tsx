@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import type { SensorReading } from "../types/sensor-data";
 import { supabase } from "../lib/supabaseClient";
 import { useProject } from "./ProjectContext";
@@ -25,9 +25,9 @@ export function DosingProvider({ children }: { children: ReactNode }) {
   const { viewingProject, activeProject } = useProject();
   const { thresholds } = useThresholds();
 
-  // Track last flag states in refs (not persisted — only matters within a session)
-  const [lastECFlag, setLastECFlag] = useState<number | undefined>(undefined);
-  const [lastPHFlag, setLastPHFlag] = useState<number | undefined>(undefined);
+  // Track last flag states in refs (stable across renders, no re-render loops)
+  const lastECFlagRef = useRef<number | undefined>(undefined);
+  const lastPHFlagRef = useRef<number | undefined>(undefined);
 
   // Load dosing history from Supabase when viewing project changes
   useEffect(() => {
@@ -64,7 +64,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
     // Check EC dosing flag (0 = not dosing, 1 = dosing)
     if (reading.ecDosingFlag !== undefined) {
       // Detect transition from 0 to 1 (dosing started) OR first reading with flag=1
-      if (reading.ecDosingFlag === 1 && (lastECFlag === undefined || lastECFlag === 0)) {
+      if (reading.ecDosingFlag === 1 && (lastECFlagRef.current === undefined || lastECFlagRef.current === 0)) {
         newEvents.push({
           id: `ec-${now}`,
           timestamp: now,
@@ -74,7 +74,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         });
       }
       // Detect transition from 1 to 0 (dosing stopped)
-      if (reading.ecDosingFlag === 0 && lastECFlag === 1) {
+      if (reading.ecDosingFlag === 0 && lastECFlagRef.current === 1) {
         newEvents.push({
           id: `ec-${now}`,
           timestamp: now,
@@ -83,7 +83,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
           value: reading.ec,
         });
       }
-      setLastECFlag(reading.ecDosingFlag);
+      lastECFlagRef.current = reading.ecDosingFlag;
     }
 
     // Check pH dosing flag (0 = not dosing, 1 = dosing)
@@ -92,7 +92,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
       const phTooLow = reading.ph < thresholds.ph.lower;
 
       // Detect transition from 0 to 1 (dosing started) — only when pH is too low
-      if (reading.phDosingFlag === 1 && (lastPHFlag === undefined || lastPHFlag === 0) && phTooLow) {
+      if (reading.phDosingFlag === 1 && (lastPHFlagRef.current === undefined || lastPHFlagRef.current === 0) && phTooLow) {
         newEvents.push({
           id: `ph-${now}`,
           timestamp: now,
@@ -102,7 +102,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         });
       }
       // Detect transition from 1 to 0 (dosing stopped)
-      if (reading.phDosingFlag === 0 && lastPHFlag === 1) {
+      if (reading.phDosingFlag === 0 && lastPHFlagRef.current === 1) {
         newEvents.push({
           id: `ph-${now}`,
           timestamp: now,
@@ -111,7 +111,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
           value: reading.ph,
         });
       }
-      setLastPHFlag(reading.phDosingFlag);
+      lastPHFlagRef.current = reading.phDosingFlag;
     }
 
     if (newEvents.length > 0) {
@@ -131,7 +131,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         });
       }
     }
-  }, [lastECFlag, lastPHFlag, activeProject, thresholds]);
+  }, [activeProject, thresholds]);
 
   const clearDosingHistory = useCallback(() => {
     setDosingHistory([]);

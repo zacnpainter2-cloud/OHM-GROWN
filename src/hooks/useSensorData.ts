@@ -57,6 +57,9 @@ async function saveReadingToSupabase(reading: SensorReading, projectId: number |
         dissolved_oxygen: reading.o2,
         water_level: reading.waterLevel,
         transpiration_rate: reading.transpirationRate,
+        ec_dosing_flag: reading.ecDosingFlag ?? 0,
+        ph_dosing_flag: reading.phDosingFlag ?? 0,
+        water_flow_ok: reading.waterFlowOk ?? 1,
         network_status: "online",
         project_id: projectId,
       },
@@ -124,6 +127,9 @@ async function fetchReadingsFromSupabase(projectId?: number | null): Promise<Sen
       o2: Number(row.dissolved_oxygen ?? 0),
       waterLevel: Number(row.water_level ?? 0),
       transpirationRate: Number(row.transpiration_rate ?? 0),
+      ecDosingFlag: row.ec_dosing_flag != null ? Number(row.ec_dosing_flag) : undefined,
+      phDosingFlag: row.ph_dosing_flag != null ? Number(row.ph_dosing_flag) : undefined,
+      waterFlowOk: row.water_flow_ok != null ? Number(row.water_flow_ok) : undefined,
     })).filter((r) => !(r.temperature === 0 && r.ph === 0 && r.ec === 0));
   } catch (err) {
     console.error("Unexpected Supabase fetch error:", err);
@@ -267,6 +273,9 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
           dissolved_oxygen: r.o2,
           water_level: r.waterLevel,
           transpiration_rate: r.transpirationRate ?? 0,
+          ec_dosing_flag: r.ecDosingFlag ?? 0,
+          ph_dosing_flag: r.phDosingFlag ?? 0,
+          water_flow_ok: r.waterFlowOk ?? 1,
           network_status: "online",
           project_id: projectId,
         }));
