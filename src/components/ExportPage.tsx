@@ -26,6 +26,7 @@ export function ExportPage() {
     ph: false,
     temperature: false,
     waterLevel: false,
+    waterFlow: false,
   });
 
   const [dateRange, setDateRange] = useState<{
@@ -326,7 +327,9 @@ export function ExportPage() {
           row[`Water Level (${waterLevelUnit})`] = levelValue.toFixed(2);
         }
 
-        row["Water Flow"] = reading.waterFlowOk === 1 ? "On" : reading.waterFlowOk === 0 ? "Off" : "N/A";
+        if (selectedParameters.waterFlow) {
+          row["Water Flow"] = reading.waterFlowOk === 1 ? "On" : reading.waterFlowOk === 0 ? "Off" : "N/A";
+        }
 
         return row;
       });
@@ -374,6 +377,7 @@ export function ExportPage() {
       ph: true,
       temperature: true,
       waterLevel: true,
+      waterFlow: true,
     });
     
     // Set date range
@@ -593,6 +597,19 @@ export function ExportPage() {
               />
               <Label htmlFor="waterLevel" className="cursor-pointer">
                 Water Level
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="waterFlow"
+                checked={selectedParameters.waterFlow}
+                onCheckedChange={(checked) =>
+                  handleParameterChange("waterFlow", checked as boolean)
+                }
+              />
+              <Label htmlFor="waterFlow" className="cursor-pointer">
+                Water Flow
               </Label>
             </div>
           </CardContent>
