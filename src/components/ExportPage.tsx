@@ -255,24 +255,26 @@ export function ExportPage() {
       endOfDay.setHours(23, 59, 59, 999);
       const endISO = endOfDay.toISOString();
 
-      let query = supabase
-        .from("measurements")
-        .select("*")
-        .gte("recorded_at", startISO)
-        .lte("recorded_at", endISO)
-        .order("recorded_at", { ascending: true });
-
-      if (viewingProject?.id != null) {
-        query = query.eq("project_id", viewingProject.id);
-      }
-
       // Paginate to get all results
       const PAGE_SIZE = 1000;
       const allRows: any[] = [];
       let from = 0;
       while (true) {
-        const { data, error: fetchErr } = await query.range(from, from + PAGE_SIZE - 1);
+        let query = supabase
+          .from("measurements")
+          .select("*")
+          .gte("recorded_at", startISO)
+          .lte("recorded_at", endISO)
+          .order("recorded_at", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (viewingProject?.id != null) {
+          query = query.eq("project_id", viewingProject.id);
+        }
+
+        const { data, error: fetchErr } = await query;
         if (fetchErr) {
+          console.error("Supabase export fetch error:", fetchErr);
           toast.error("Failed to fetch data: " + fetchErr.message);
           setIsExporting(false);
           return;
@@ -390,19 +392,39 @@ export function ExportPage() {
     setIsExporting(true);
 
     try {
-      const response = await fetchSensorDataForExport(
-        from,
-        now,
-        ['ec', 'ph', 'temperature', 'o2', 'waterLevel', 'transpirationRate']
-      );
+      const startISO = from.toISOString();
+      const endISO = now.toISOString();
 
-      if (!response.success || !response.data) {
-        toast.error(response.error || "Failed to fetch data");
+      let query = supabase
+        .from("measurements")
+        .select("*")
+        .gte("recorded_at", startISO)
+        .lte("recorded_at", endISO)
+        .order("recorded_at", { ascending: true })
+        .limit(10000);
+
+      if (viewingProject?.id != null) {
+        query = query.eq("project_id", viewingProject.id);
+      }
+
+      const { data, error: fetchErr } = await query;
+
+      if (fetchErr) {
+        console.error("Supabase quick export error:", fetchErr);
+        toast.error("Failed to fetch data: " + fetchErr.message);
         setIsExporting(false);
         return;
       }
 
-      const readings = response.data;
+      const readings = (data || []).map((row: any) => ({
+        timestamp: new Date(row.recorded_at).getTime(),
+        ec: Number(row.ec ?? 0),
+        ph: Number(row.ph ?? 0),
+        temperature: Number(row.temperature ?? 0),
+        o2: Number(row.dissolved_oxygen ?? 0),
+        waterLevel: Number(row.water_level ?? 0),
+        transpirationRate: Number(row.transpiration_rate ?? 0),
+      }));
 
       if (readings.length === 0) {
         toast.warning(`No data found for the ${presetName.toLowerCase()}`);
