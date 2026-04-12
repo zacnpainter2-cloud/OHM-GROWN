@@ -25,9 +25,7 @@ export function ExportPage() {
     ec: false,
     ph: false,
     temperature: false,
-    o2: false,
     waterLevel: false,
-    transpirationRate: false,
   });
 
   const [dateRange, setDateRange] = useState<{
@@ -322,17 +320,11 @@ export function ExportPage() {
             : reading.temperature;
           row[`Temperature (°${tempUnit})`] = tempValue.toFixed(2);
         }
-        if (selectedParameters.o2) {
-          row["O2 (%)"] = reading.o2.toFixed(1);
-        }
         if (selectedParameters.waterLevel) {
           const levelValue = waterLevelUnit === "cm" 
             ? reading.waterLevel 
             : reading.waterLevel / 2.54;
           row[`Water Level (${waterLevelUnit})`] = levelValue.toFixed(2);
-        }
-        if (selectedParameters.transpirationRate) {
-          row["Transpiration Rate (L/m²/day)"] = reading.transpirationRate.toFixed(0);
         }
 
         return row;
@@ -380,9 +372,7 @@ export function ExportPage() {
       ec: true,
       ph: true,
       temperature: true,
-      o2: true,
       waterLevel: true,
-      transpirationRate: true,
     });
     
     // Set date range
@@ -447,9 +437,7 @@ export function ExportPage() {
           "EC (µS/cm)": reading.ec.toFixed(0),
           "pH": reading.ph.toFixed(2),
           [`Temperature (°${tempUnit})`]: tempValue.toFixed(2),
-          "O2 (%)": reading.o2.toFixed(1),
           [`Water Level (${waterLevelUnit})`]: levelValue.toFixed(2),
-          "Transpiration Rate (L/m²/day)": reading.transpirationRate.toFixed(0),
         };
       });
 
@@ -594,19 +582,6 @@ export function ExportPage() {
 
             <div className="flex items-center space-x-2">
               <Checkbox
-                id="o2"
-                checked={selectedParameters.o2}
-                onCheckedChange={(checked) =>
-                  handleParameterChange("o2", checked as boolean)
-                }
-              />
-              <Label htmlFor="o2" className="cursor-pointer">
-                O2 (Dissolved Oxygen)
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
                 id="waterLevel"
                 checked={selectedParameters.waterLevel}
                 onCheckedChange={(checked) =>
@@ -615,19 +590,6 @@ export function ExportPage() {
               />
               <Label htmlFor="waterLevel" className="cursor-pointer">
                 Water Level
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="transpirationRate"
-                checked={selectedParameters.transpirationRate}
-                onCheckedChange={(checked) =>
-                  handleParameterChange("transpirationRate", checked as boolean)
-                }
-              />
-              <Label htmlFor="transpirationRate" className="cursor-pointer">
-                Transpiration Rate
               </Label>
             </div>
           </CardContent>
@@ -813,9 +775,7 @@ export function ExportPage() {
                       ec: "EC",
                       ph: "pH",
                       temperature: "Temperature",
-                      o2: "O2",
                       waterLevel: "Water Level",
-                      transpirationRate: "Transpiration Rate",
                     };
                     return paramNames[param];
                   })
