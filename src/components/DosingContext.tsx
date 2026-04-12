@@ -28,6 +28,8 @@ export function DosingProvider({ children }: { children: ReactNode }) {
   // Track last flag states in refs (stable across renders, no re-render loops)
   const lastECFlagRef = useRef<number | undefined>(undefined);
   const lastPHFlagRef = useRef<number | undefined>(undefined);
+  // Prevent duplicate processing when the same reading triggers the effect multiple times
+  const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
 
   // Load dosing history from Supabase when viewing project changes
   useEffect(() => {
@@ -68,6 +70,13 @@ export function DosingProvider({ children }: { children: ReactNode }) {
   }, [viewingProject]);
 
   const checkDosingEvents = useCallback((reading: SensorReading) => {
+    // Skip if we already processed this exact reading (prevents duplicates
+    // when the effect re-runs due to dependency changes like thresholds)
+    if (lastProcessedTimestampRef.current === reading.timestamp) {
+      return;
+    }
+    lastProcessedTimestampRef.current = reading.timestamp;
+
     const newEvents: DosingEvent[] = [];
     const now = reading.timestamp;
 
