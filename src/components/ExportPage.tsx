@@ -289,6 +289,7 @@ export function ExportPage() {
         o2: Number(row.dissolved_oxygen ?? 0),
         waterLevel: Number(row.water_level ?? 0),
         transpirationRate: Number(row.transpiration_rate ?? 0),
+        waterFlowOk: row.water_flow_ok != null ? Number(row.water_flow_ok) : undefined,
       }));
 
       if (readings.length === 0) {
@@ -324,6 +325,8 @@ export function ExportPage() {
             : reading.waterLevel / 2.54;
           row[`Water Level (${waterLevelUnit})`] = levelValue.toFixed(2);
         }
+
+        row["Water Flow"] = reading.waterFlowOk === 1 ? "On" : reading.waterFlowOk === 0 ? "Off" : "N/A";
 
         return row;
       });
@@ -412,6 +415,7 @@ export function ExportPage() {
         o2: Number(row.dissolved_oxygen ?? 0),
         waterLevel: Number(row.water_level ?? 0),
         transpirationRate: Number(row.transpiration_rate ?? 0),
+        waterFlowOk: row.water_flow_ok != null ? Number(row.water_flow_ok) : undefined,
       }));
 
       if (readings.length === 0) {
@@ -436,6 +440,7 @@ export function ExportPage() {
           "pH": reading.ph.toFixed(2),
           [`Temperature (°${tempUnit})`]: tempValue.toFixed(2),
           [`Water Level (${waterLevelUnit})`]: levelValue.toFixed(2),
+          "Water Flow": reading.waterFlowOk === 1 ? "On" : reading.waterFlowOk === 0 ? "Off" : "N/A",
         };
       });
 

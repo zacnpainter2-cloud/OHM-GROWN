@@ -378,7 +378,9 @@ export function useLatestReading(projectId?: number | null) {
           prev.temperature !== newReading.temperature ||
           prev.o2 !== newReading.o2 ||
           prev.waterLevel !== newReading.waterLevel ||
-          prev.transpirationRate !== newReading.transpirationRate;
+          prev.transpirationRate !== newReading.transpirationRate ||
+          prev.ecDosingFlag !== newReading.ecDosingFlag ||
+          prev.phDosingFlag !== newReading.phDosingFlag;
 
         if (isNewData) {
           setReading(newReading);

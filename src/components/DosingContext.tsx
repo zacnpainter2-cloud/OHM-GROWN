@@ -45,15 +45,25 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setDosingHistory(
-        (data || []).map((row: any) => ({
-          id: `${row.event_type.toLowerCase()}-${row.id}`,
-          timestamp: new Date(row.occurred_at).getTime(),
-          type: row.event_type as DosingEvent["type"],
-          action: row.action as DosingEvent["action"],
-          value: row.sensor_value ?? undefined,
-        }))
-      );
+      const events = (data || []).map((row: any) => ({
+        id: `${row.event_type.toLowerCase()}-${row.id}`,
+        timestamp: new Date(row.occurred_at).getTime(),
+        type: row.event_type as DosingEvent["type"],
+        action: row.action as DosingEvent["action"],
+        value: row.sensor_value ?? undefined,
+      }));
+      setDosingHistory(events);
+
+      // Initialize refs from the most recent events so page reloads
+      // don't re-emit a "started" event that was already recorded.
+      const lastEC = events.find((e) => e.type === "EC");
+      const lastPH = events.find((e) => e.type === "pH");
+      if (lastEC) {
+        lastECFlagRef.current = lastEC.action === "started" ? 1 : 0;
+      }
+      if (lastPH) {
+        lastPHFlagRef.current = lastPH.action === "started" ? 1 : 0;
+      }
     })();
   }, [viewingProject]);
 
