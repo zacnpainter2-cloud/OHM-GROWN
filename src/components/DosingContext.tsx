@@ -70,20 +70,17 @@ export function DosingProvider({ children }: { children: ReactNode }) {
   }, [viewingProject]);
 
   const checkDosingEvents = useCallback((reading: SensorReading) => {
-    // Skip if we already processed this exact reading (prevents duplicates
-    // when the effect re-runs due to dependency changes like thresholds)
-    if (lastProcessedTimestampRef.current === reading.timestamp) {
-      return;
-    }
-    lastProcessedTimestampRef.current = reading.timestamp;
-
-    const newEvents: DosingEvent[] = [];
     const now = reading.timestamp;
+    const newEvents: DosingEvent[] = [];
+
+    // Helper to check for duplicate event in dosingHistory
+    const eventExists = (type: "EC" | "pH", action: "started" | "stopped") =>
+      dosingHistory.some(e => e.timestamp === now && e.type === type && e.action === action);
 
     // Check EC dosing flag (0 = not dosing, 1 = dosing)
     if (reading.ecDosingFlag !== undefined) {
-      // Detect transition from 0 to 1 (dosing started) OR first reading with flag=1
-      if (reading.ecDosingFlag === 1 && (lastECFlagRef.current === undefined || lastECFlagRef.current === 0)) {
+      // Detect transition from 0 to 1 (dosing started)
+      if (reading.ecDosingFlag === 1 && lastECFlagRef.current === 0 && !eventExists("EC", "started")) {
         newEvents.push({
           id: `ec-${now}`,
           timestamp: now,
@@ -93,7 +90,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         });
       }
       // Detect transition from 1 to 0 (dosing stopped)
-      if (reading.ecDosingFlag === 0 && lastECFlagRef.current === 1) {
+      if (reading.ecDosingFlag === 0 && lastECFlagRef.current === 1 && !eventExists("EC", "stopped")) {
         newEvents.push({
           id: `ec-${now}`,
           timestamp: now,
@@ -111,7 +108,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
       const phTooLow = reading.ph < thresholds.ph.lower;
 
       // Detect transition from 0 to 1 (dosing started) — only when pH is too low
-      if (reading.phDosingFlag === 1 && (lastPHFlagRef.current === undefined || lastPHFlagRef.current === 0) && phTooLow) {
+      if (reading.phDosingFlag === 1 && lastPHFlagRef.current === 0 && phTooLow && !eventExists("pH", "started")) {
         newEvents.push({
           id: `ph-${now}`,
           timestamp: now,
@@ -121,7 +118,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         });
       }
       // Detect transition from 1 to 0 (dosing stopped)
-      if (reading.phDosingFlag === 0 && lastPHFlagRef.current === 1) {
+      if (reading.phDosingFlag === 0 && lastPHFlagRef.current === 1 && !eventExists("pH", "stopped")) {
         newEvents.push({
           id: `ph-${now}`,
           timestamp: now,
@@ -150,7 +147,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         });
       }
     }
-  }, [activeProject, thresholds]);
+  }, [activeProject, thresholds, dosingHistory]);
 
   const clearDosingHistory = useCallback(() => {
     setDosingHistory([]);
