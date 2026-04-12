@@ -194,13 +194,11 @@ export function ExportPage() {
     const csvData = filteredData.map(alert => {
       const duration = alert.duration ? Math.round(alert.duration / 1000 / 60) : "Ongoing";
       return {
-        "Start Date": format(new Date(alert.startTime), "yyyy-MM-dd"),
-        "Start Time": format(new Date(alert.startTime), "HH:mm:ss"),
-        "End Date": alert.endTime ? format(new Date(alert.endTime), "yyyy-MM-dd") : "Ongoing",
-        "End Time": alert.endTime ? format(new Date(alert.endTime), "HH:mm:ss") : "Ongoing",
-        "Duration (min)": duration,
-        Type: alert.type,
+        "Alert Type": alert.type,
         Severity: alert.severity,
+        "Start Time": format(new Date(alert.startTime), "yyyy-MM-dd HH:mm:ss"),
+        "End Time": alert.endTime ? format(new Date(alert.endTime), "yyyy-MM-dd HH:mm:ss") : "Ongoing",
+        "Duration (min)": duration,
         Message: alert.message
       };
     });
