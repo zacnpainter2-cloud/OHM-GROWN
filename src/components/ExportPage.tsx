@@ -115,7 +115,7 @@ export function ExportPage() {
     });
     
     // Combine header and rows
-    return [csvHeader, ...csvRows].join("\n");
+    return [csvHeader, ...csvRows].join("\r\n");
   };
 
   const handleDosingExport = () => {
