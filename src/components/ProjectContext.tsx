@@ -50,6 +50,21 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       if (!viewingProject) {
         setViewingProject(active);
       }
+    } else {
+      // Auto-create a default project if none exists
+      const { data: newProject, error: createErr } = await supabase
+        .from("projects")
+        .insert([{ name: "Default Project", is_active: true }])
+        .select()
+        .single();
+
+      if (!createErr && newProject) {
+        setActiveProject(newProject);
+        setViewingProject(newProject);
+        setProjects([newProject, ...projectList]);
+      } else {
+        console.error("Failed to auto-create default project:", createErr);
+      }
     }
 
     setLoading(false);

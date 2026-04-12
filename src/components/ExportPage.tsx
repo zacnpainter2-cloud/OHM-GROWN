@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { CalendarIcon, Download, Loader2, Zap } from "lucide-react";
 import { format } from "date-fns";
-import { fetchSensorDataForExport } from "../services/aws-data-service";
 import { toast } from "sonner";
 import { useDosing } from "./DosingContext";
 import { useAlerts } from "./AlertContext";
+import { useProject } from "./ProjectContext";
+import { supabase } from "../lib/supabaseClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -18,6 +19,7 @@ type TimeRangeOption = "1h" | "3h" | "6h" | "12h" | "24h" | "3d" | "7d" | "14d" 
 export function ExportPage() {
   const { dosingHistory } = useDosing();
   const { alertHistory } = useAlerts();
+  const { viewingProject } = useProject();
   
   const [selectedParameters, setSelectedParameters] = useState({
     ec: false,
@@ -246,21 +248,50 @@ export function ExportPage() {
         return;
       }
 
-      // Fetch real data from DynamoDB
-      console.log('Fetching export data...');
-      const response = await fetchSensorDataForExport(
-        dateRange.from,
-        dateRange.to,
-        selectedParams
-      );
+      // Fetch data from Supabase
+      console.log('Fetching export data from Supabase...');
+      const startISO = dateRange.from.toISOString();
+      const endOfDay = new Date(dateRange.to);
+      endOfDay.setHours(23, 59, 59, 999);
+      const endISO = endOfDay.toISOString();
 
-      if (!response.success || !response.data) {
-        toast.error(response.error || "Failed to fetch data");
-        setIsExporting(false);
-        return;
+      let query = supabase
+        .from("measurements")
+        .select("*")
+        .gte("recorded_at", startISO)
+        .lte("recorded_at", endISO)
+        .order("recorded_at", { ascending: true });
+
+      if (viewingProject?.id != null) {
+        query = query.eq("project_id", viewingProject.id);
       }
 
-      const readings = response.data;
+      // Paginate to get all results
+      const PAGE_SIZE = 1000;
+      const allRows: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error: fetchErr } = await query.range(from, from + PAGE_SIZE - 1);
+        if (fetchErr) {
+          toast.error("Failed to fetch data: " + fetchErr.message);
+          setIsExporting(false);
+          return;
+        }
+        if (!data || data.length === 0) break;
+        allRows.push(...data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      const readings = allRows.map((row: any) => ({
+        timestamp: new Date(row.recorded_at).getTime(),
+        ec: Number(row.ec ?? 0),
+        ph: Number(row.ph ?? 0),
+        temperature: Number(row.temperature ?? 0),
+        o2: Number(row.dissolved_oxygen ?? 0),
+        waterLevel: Number(row.water_level ?? 0),
+        transpirationRate: Number(row.transpiration_rate ?? 0),
+      }));
 
       if (readings.length === 0) {
         toast.warning("No data found for the selected date range");
