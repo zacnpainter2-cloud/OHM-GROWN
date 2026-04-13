@@ -264,20 +264,27 @@ export function useSensorData(): UseSensorDataResult {
         }));
 
         // Insert in batches of 500 to avoid payload limits
-        // Use upsert with ignoreDuplicates to prevent duplicate recorded_at
-        // from causing entire batch failures
+        // Use plain insert since data starts after the latest Supabase timestamp
         const BATCH_SIZE = 500;
         let inserted = 0;
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
           const batch = rows.slice(i, i + BATCH_SIZE);
           const { error: insertErr } = await supabase
             .from("measurements")
-            .upsert(batch, { onConflict: 'recorded_at', ignoreDuplicates: true });
+            .insert(batch);
 
           if (insertErr) {
-            // Fall back to individual inserts if upsert fails (e.g. no unique constraint)
-            console.warn("Backfill upsert error, falling back to individual inserts:", insertErr);
+            // If batch fails (e.g. duplicate), fall back to individual inserts
+            console.warn("Backfill batch insert error, falling back to individual inserts:", insertErr);
             for (const row of batch) {
+              // Check if this timestamp already exists before inserting
+              const { data: existing } = await supabase
+                .from("measurements")
+                .select("id")
+                .eq("recorded_at", row.recorded_at)
+                .limit(1);
+              if (existing && existing.length > 0) continue;
+
               const { error: singleErr } = await supabase
                 .from("measurements")
                 .insert([row]);
