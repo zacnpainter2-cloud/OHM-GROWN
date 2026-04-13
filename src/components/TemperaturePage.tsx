@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Badge } from "./ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
-import { useSensorData } from "../hooks/useSensorData";
+import { useSharedSensorData } from "./SensorDataContext";
 import { useUnits } from "./UnitContext";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
@@ -10,7 +10,7 @@ import { useThresholds } from "./ThresholdContext";
 
 export function TemperaturePage() {
   const { thresholds } = useThresholds();
-  const { readings, latestReading, isLoading } = useSensorData();
+  const { readings, latestReading, isLoading } = useSharedSensorData();
   const { tempUnit, setTempUnit } = useUnits();
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");

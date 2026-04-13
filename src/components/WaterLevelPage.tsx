@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Badge } from "./ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { useUnits } from "./UnitContext";
-import { useSensorData } from "../hooks/useSensorData";
+import { useSharedSensorData } from "./SensorDataContext";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { StatisticsCard } from "./StatisticsCard";
@@ -13,7 +13,7 @@ import { useThresholds } from "./ThresholdContext";
 export function WaterLevelPage() {
   const { waterLevelUnit: unit, setWaterLevelUnit } = useUnits();
   const { thresholds } = useThresholds();
-  const { readings, latestReading, isLoading, error } = useSensorData();
+  const { readings, latestReading, isLoading, error } = useSharedSensorData();
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");
     return saved === "24h" || saved === "7d" || saved === "1m" ? saved : "24h";

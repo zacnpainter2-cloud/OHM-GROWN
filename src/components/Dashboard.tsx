@@ -41,6 +41,7 @@ import { UnitProvider, useUnits } from "./UnitContext";
 import { ThresholdProvider, useThresholds } from "./ThresholdContext";
 import { AlertProvider, useAlerts } from "./AlertContext";
 import { DosingProvider, useDosing } from "./DosingContext";
+import { SensorDataProvider } from "./SensorDataContext";
 import { useTheme } from "./ThemeContext";
 import { useAuth } from "./AuthContext";
 import { useLatestReading } from "../hooks/useSensorData";
@@ -387,7 +388,9 @@ export function Dashboard() {
       <ThresholdProvider>
         <AlertProvider>
           <DosingProvider>
+            <SensorDataProvider>
               <DashboardContent />
+            </SensorDataProvider>
           </DosingProvider>
         </AlertProvider>
       </ThresholdProvider>

@@ -6,12 +6,12 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Wrench, Loader2, AlertCircle } from "lucide-react";
 import { useUnits } from "./UnitContext";
 import { useAlerts } from "./AlertContext";
-import { useSensorData } from "../hooks/useSensorData";
+import { useSharedSensorData } from "./SensorDataContext";
 
 export function HomePage() {
   const { tempUnit, waterLevelUnit } = useUnits();
   const { } = useAlerts();
-  const { readings, latestReading, isLoading, error } = useSensorData();
+  const { readings, latestReading, isLoading, error } = useSharedSensorData();
 
   // Convert data based on selected units — show last 24 hours
   const data = useMemo(() => {

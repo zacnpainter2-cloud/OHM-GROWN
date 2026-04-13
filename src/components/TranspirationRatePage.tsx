@@ -2,12 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Badge } from "./ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
-import { useSensorData } from "../hooks/useSensorData";
+import { useSharedSensorData } from "./SensorDataContext";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
 
 export function TranspirationRatePage() {
-  const { readings, latestReading, isLoading } = useSensorData();
+  const { readings, latestReading, isLoading } = useSharedSensorData();
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");
     return saved === "24h" || saved === "7d" || saved === "1m" ? saved : "24h";
