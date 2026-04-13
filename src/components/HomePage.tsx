@@ -7,6 +7,9 @@ import { Wrench, Loader2, AlertCircle } from "lucide-react";
 import { useUnits } from "./UnitContext";
 import { useAlerts } from "./AlertContext";
 import { useSharedSensorData } from "./SensorDataContext";
+import { downsample } from "../utils/downsample";
+
+const MAX_CHART_POINTS = 200;
 
 export function HomePage() {
   const { tempUnit, waterLevelUnit } = useUnits();
@@ -17,9 +20,8 @@ export function HomePage() {
   const data = useMemo(() => {
     if (readings.length === 0) return [];
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    return readings
-      .filter(d => d.timestamp >= cutoff)
-      .map(d => ({
+    const filtered = readings.filter(d => d.timestamp >= cutoff);
+    return downsample(filtered, MAX_CHART_POINTS).map(d => ({
         date: new Date(d.timestamp).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
           minute: '2-digit' 
@@ -110,7 +112,7 @@ export function HomePage() {
                   dataKey="ec" 
                   stroke="#0d9488" 
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={false}
                   isAnimationActive={false}
                 />
               </LineChart>
@@ -154,7 +156,7 @@ export function HomePage() {
                   dataKey="ph" 
                   stroke="#06b6d4" 
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={false}
                   isAnimationActive={false}
                 />
               </LineChart>
@@ -198,7 +200,7 @@ export function HomePage() {
                   dataKey="temp" 
                   stroke="#14b8a6" 
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={false}
                   isAnimationActive={false}
                 />
               </LineChart>
@@ -242,7 +244,7 @@ export function HomePage() {
                   dataKey="waterLevel" 
                   stroke="#16a34a" 
                   strokeWidth={2}
-                  dot={{ r: 4 }}
+                  dot={false}
                   isAnimationActive={false}
                 />
               </LineChart>

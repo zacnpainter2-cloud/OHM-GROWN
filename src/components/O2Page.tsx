@@ -5,6 +5,9 @@ import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { useSharedSensorData } from "./SensorDataContext";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
+import { downsample } from "../utils/downsample";
+
+const MAX_CHART_POINTS = 300;
 
 export function O2Page() {
   const { readings, latestReading, isLoading } = useSharedSensorData();
@@ -32,7 +35,7 @@ export function O2Page() {
   
   // Transform sensor readings for the chart
   const chartData = useMemo(() => {
-    return filteredReadings.map(reading => ({
+    return downsample(filteredReadings, MAX_CHART_POINTS).map(reading => ({
       time: new Date(reading.timestamp).toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit' 

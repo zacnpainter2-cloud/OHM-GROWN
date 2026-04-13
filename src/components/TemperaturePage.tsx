@@ -7,6 +7,9 @@ import { useUnits } from "./UnitContext";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
 import { useThresholds } from "./ThresholdContext";
+import { downsample } from "../utils/downsample";
+
+const MAX_CHART_POINTS = 300;
 
 export function TemperaturePage() {
   const { thresholds } = useThresholds();
@@ -41,7 +44,7 @@ export function TemperaturePage() {
   
   // Transform sensor readings for the chart
   const chartData = useMemo(() => {
-    return filteredReadings.map(reading => ({
+    return downsample(filteredReadings, MAX_CHART_POINTS).map(reading => ({
       time: new Date(reading.timestamp).toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit' 

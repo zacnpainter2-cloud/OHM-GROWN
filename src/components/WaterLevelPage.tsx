@@ -9,6 +9,9 @@ import { Loader2 } from "lucide-react";
 import { StatisticsCard } from "./StatisticsCard";
 import { useMemo } from "react";
 import { useThresholds } from "./ThresholdContext";
+import { downsample } from "../utils/downsample";
+
+const MAX_CHART_POINTS = 300;
 
 export function WaterLevelPage() {
   const { waterLevelUnit: unit, setWaterLevelUnit } = useUnits();
@@ -38,7 +41,7 @@ export function WaterLevelPage() {
 
   // Transform readings for chart display with unit conversion
   const chartData = useMemo(() => {
-    return filteredReadings.map((d) => ({
+    return downsample(filteredReadings, MAX_CHART_POINTS).map((d) => ({
       time: new Date(d.timestamp).toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit',

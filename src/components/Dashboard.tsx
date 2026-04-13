@@ -41,10 +41,9 @@ import { UnitProvider, useUnits } from "./UnitContext";
 import { ThresholdProvider, useThresholds } from "./ThresholdContext";
 import { AlertProvider, useAlerts } from "./AlertContext";
 import { DosingProvider, useDosing } from "./DosingContext";
-import { SensorDataProvider } from "./SensorDataContext";
+import { SensorDataProvider, useSharedSensorData } from "./SensorDataContext";
 import { useTheme } from "./ThemeContext";
 import { useAuth } from "./AuthContext";
-import { useLatestReading } from "../hooks/useSensorData";
 
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState("home");
@@ -57,7 +56,7 @@ function DashboardContent() {
   const { alerts, checkAlerts } = useAlerts();
   const { checkDosingEvents } = useDosing();
   const { thresholds } = useThresholds();
-  const { reading: latestReading, lastChanged } = useLatestReading();
+  const { latestReading, lastUpdated: lastChanged } = useSharedSensorData();
   const { theme, toggleTheme } = useTheme();
 
   const lastUpdatedText = useMemo(() => {
@@ -84,7 +83,7 @@ function DashboardContent() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, 10000); // Update clock every 10s to reduce re-renders
 
     return () => clearInterval(timer);
   }, []);

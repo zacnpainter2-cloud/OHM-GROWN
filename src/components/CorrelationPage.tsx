@@ -13,6 +13,7 @@ import { TimeRangeControls, TimeRange, ComparisonPeriod } from "./TimeRangeContr
 import { format } from "date-fns";
 import domtoimage from "dom-to-image-more";
 import React from "react";
+import { downsample } from "../utils/downsample";
 
 type ParameterKey = "ec" | "pH" | "temp" | "o2" | "waterLevel" | "transpiration";
 
@@ -251,10 +252,19 @@ export function CorrelationPage() {
     return "text-gray-900 dark:text-gray-100";
   };
 
+  const MAX_CHART_POINTS = 300;
+
   // Scatter plot data
   const scatterData = useMemo(() => {
-    const values1 = getParameterValues(selectedParam1);
-    const values2 = getParameterValues(selectedParam2);
+    const sampled = downsample(filteredReadings, MAX_CHART_POINTS);
+    const values1 = sampled.map(r => {
+      const v = r[selectedParam1];
+      return typeof v === "number" ? v : parseFloat(String(v));
+    }).map(v => isNaN(v) ? 0 : v);
+    const values2 = sampled.map(r => {
+      const v = r[selectedParam2];
+      return typeof v === "number" ? v : parseFloat(String(v));
+    }).map(v => isNaN(v) ? 0 : v);
     
     const lagIndex = Math.floor(lagMinutes / 5); // Assuming 5-minute intervals
     
@@ -265,7 +275,7 @@ export function CorrelationPage() {
       return {
         x: val1,
         y: values2[adjustedIdx],
-        timestamp: filteredReadings[idx]?.timestamp,
+        timestamp: sampled[idx]?.timestamp,
       };
     }).filter((d) => d !== null);
   }, [selectedParam1, selectedParam2, filteredReadings, lagMinutes]);
