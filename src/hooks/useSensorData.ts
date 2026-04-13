@@ -140,6 +140,7 @@ export function useSensorData(): UseSensorDataResult {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const hasBackfilled = useRef(false);
+  const hasInitialLoad = useRef(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -149,13 +150,26 @@ export function useSensorData(): UseSensorDataResult {
       }
       setError(null);
 
-      // Step 1: fetch latest from AWS
+      // On first load, fetch full history from Supabase
+      if (!hasInitialLoad.current) {
+        hasInitialLoad.current = true;
+        const dbReadings = await fetchReadingsFromSupabase();
+        setReadings(dbReadings);
+        if (dbReadings.length > 0) {
+          const latest = dbReadings[dbReadings.length - 1];
+          setLatestReading(latest);
+          latestReadingRef.current = latest;
+          setLastUpdated(latest.timestamp);
+        }
+      }
+
+      // Fetch latest from AWS
       const response = await fetchLatestReading();
 
       if (response.success && response.data) {
         const newReading = response.data;
 
-        // Only update latest if sensor values actually changed
+        // Only update if sensor values actually changed
         const prev = latestReadingRef.current;
         const isNewData = !prev ||
           prev.ec !== newReading.ec ||
@@ -171,24 +185,20 @@ export function useSensorData(): UseSensorDataResult {
           setLastUpdated(newReading.timestamp);
           await saveReadingToSupabase(newReading);
 
-          // Only reload from Supabase when we have new data
-          const dbReadings = await fetchReadingsFromSupabase();
-          setReadings(dbReadings);
+          // Append the new reading instead of re-fetching entire history
+          setReadings(prev => {
+            // Avoid duplicate timestamps
+            if (prev.length > 0 && prev[prev.length - 1].timestamp === newReading.timestamp) {
+              return prev;
+            }
+            // Trim old readings beyond 180 days
+            const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
+            const trimmed = prev.filter(r => r.timestamp >= cutoff);
+            return [...trimmed, newReading];
+          });
         }
       } else {
         console.warn("AWS latest reading fetch failed:", response.error);
-
-        // Only load from Supabase on first load or if we have no data
-        if (!latestReadingRef.current) {
-          const dbReadings = await fetchReadingsFromSupabase();
-          setReadings(dbReadings);
-          if (dbReadings.length > 0) {
-            const fallback = dbReadings[dbReadings.length - 1];
-            setLatestReading(fallback);
-            latestReadingRef.current = fallback;
-            setLastUpdated(fallback.timestamp);
-          }
-        }
       }
     } catch (err) {
       console.error("useSensorData: Error loading sensor data:", err);
@@ -326,7 +336,8 @@ export function useSensorData(): UseSensorDataResult {
 
 /**
  * Hook for fetching only the latest reading
- * Also syncs latest reading into Supabase
+ * Polls AWS for the latest reading; does NOT re-fetch full history.
+ * Supabase saving is handled by useSensorData.
  */
 export function useLatestReading() {
   const [reading, setReading] = useState<SensorReading | null>(null);
@@ -363,14 +374,31 @@ export function useLatestReading() {
           setReading(newReading);
           readingRef.current = newReading;
           setLastChanged(newReading.timestamp);
-          await saveReadingToSupabase(newReading);
         }
       } else {
-        // fallback: get latest from Supabase if AWS fails
+        // Fallback: get only the single latest row from Supabase
         if (!readingRef.current) {
-          const readings = await fetchReadingsFromSupabase();
-          if (readings.length > 0) {
-            const fallback = readings[readings.length - 1];
+          const { data, error: fetchErr } = await supabase
+            .from("measurements")
+            .select("*")
+            .order("recorded_at", { ascending: false })
+            .limit(1);
+
+          if (!fetchErr && data && data.length > 0) {
+            const row = data[0];
+            const fallback: SensorReading = {
+              deviceId: String(row.device_id ?? ""),
+              timestamp: new Date(row.recorded_at).getTime(),
+              ec: Number(row.ec ?? 0),
+              ph: Number(row.ph ?? 0),
+              temperature: Number(row.temperature ?? 0),
+              o2: Number(row.dissolved_oxygen ?? 0),
+              waterLevel: Number(row.water_level ?? 0),
+              transpirationRate: Number(row.transpiration_rate ?? 0),
+              ecDosingFlag: row.ec_dosing_flag != null ? Number(row.ec_dosing_flag) : undefined,
+              phDosingFlag: row.ph_dosing_flag != null ? Number(row.ph_dosing_flag) : undefined,
+              waterFlowOk: row.water_flow_ok != null ? Number(row.water_flow_ok) : undefined,
+            };
             setReading(fallback);
             readingRef.current = fallback;
             setLastChanged(fallback.timestamp);
