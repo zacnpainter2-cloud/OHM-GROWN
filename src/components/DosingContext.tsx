@@ -128,14 +128,14 @@ export function DosingProvider({ children }: { children: ReactNode }) {
 
     if (newEvents.length > 0) {
       setDosingHistory((prev) => [...newEvents, ...prev].slice(0, 10000)); // Keep last 10,000 events
-      // Save new events to Supabase
+      // Save new events to Supabase (upsert to avoid duplicates from multiple tabs)
       newEvents.forEach((event) => {
-        supabase.from("dosing_history").insert([{
+        supabase.from("dosing_history").upsert([{
           event_type: event.type,
           action: event.action,
           sensor_value: event.value ?? null,
           occurred_at: new Date(event.timestamp).toISOString(),
-        }]).then(({ error }) => {
+        }], { onConflict: "event_type,action,occurred_at", ignoreDuplicates: true }).then(({ error }) => {
           if (error) console.error("Failed to save dosing event:", error);
         });
       });

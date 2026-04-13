@@ -254,16 +254,16 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
     if (endedAlerts.length > 0) {
       setAlertHistory((prev) => [...endedAlerts, ...prev].slice(0, 10000));
-      // Save ended alerts to Supabase
+      // Save ended alerts to Supabase (upsert to avoid duplicates from multiple tabs)
       endedAlerts.forEach((entry) => {
-        supabase.from("alert_history").insert([{
+        supabase.from("alert_history").upsert([{
           alert_type: entry.type,
           severity: entry.severity,
           message: entry.message,
           start_time: new Date(entry.startTime).toISOString(),
           end_time: entry.endTime ? new Date(entry.endTime).toISOString() : null,
           duration_ms: entry.duration ?? null,
-        }]).then(({ error }) => {
+        }], { onConflict: "alert_type,start_time", ignoreDuplicates: true }).then(({ error }) => {
           if (error) console.error("Failed to save alert history:", error);
         });
       });
