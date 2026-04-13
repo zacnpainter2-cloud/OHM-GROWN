@@ -45,9 +45,49 @@ import { SensorDataProvider, useSharedSensorData } from "./SensorDataContext";
 import { useTheme } from "./ThemeContext";
 import { useAuth } from "./AuthContext";
 
+/** Isolated clock component — ticks every 1s without re-rendering the rest of Dashboard */
+function LiveClock({ lastChanged }: { lastChanged: number | null }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const timeStr = new Date(now).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  let updatedText = "No data";
+  let isStale = false;
+  if (lastChanged) {
+    const diff = now - lastChanged;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    if (seconds < 60) updatedText = `${seconds}s ago`;
+    else if (minutes < 60) updatedText = `${minutes}m ago`;
+    else if (hours < 24) updatedText = `${hours}h ago`;
+    else updatedText = new Date(lastChanged).toLocaleString();
+    isStale = diff > 10 * 60 * 1000;
+  }
+
+  return (
+    <div className="text-right">
+      <div className="text-2xl font-mono text-foreground tabular-nums">
+        {timeStr}
+      </div>
+      <p className={`text-xs ${isStale ? "text-destructive" : "text-muted-foreground"}`}>
+        Updated: {updatedText}
+      </p>
+    </div>
+  );
+}
+
 function DashboardContent() {
   const [activeTab, setActiveTab] = useState("home");
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [isParametersExpanded, setIsParametersExpanded] = useState(true);
   const [isSystemSettingsExpanded, setIsSystemSettingsExpanded] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
@@ -59,35 +99,6 @@ function DashboardContent() {
   const { latestReading, lastUpdated: lastChanged } = useSharedSensorData();
   const { theme, toggleTheme } = useTheme();
 
-  const lastUpdatedText = useMemo(() => {
-    if (!lastChanged) return "No data";
-
-    const now = Date.now();
-    const diff = now - lastChanged;
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    if (seconds < 60) return `${seconds}s ago`;
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return new Date(lastChanged).toLocaleString();
-  }, [lastChanged, currentTime]);
-
-  const isDataStale = useMemo(() => {
-    if (!lastChanged) return false;
-    const diff = Date.now() - lastChanged;
-    return diff > 10 * 60 * 1000;
-  }, [lastChanged, currentTime]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 10000); // Update clock every 10s to reduce re-renders
-
-    return () => clearInterval(timer);
-  }, []);
-
   useEffect(() => {
     if (latestReading) {
       // Thresholds and sensor readings are both stored in Celsius now
@@ -95,23 +106,6 @@ function DashboardContent() {
       checkDosingEvents(latestReading);
     }
   }, [latestReading, thresholds, checkAlerts, checkDosingEvents]);
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
 
   const hasAlerts = alerts.length > 0;
   const alertMessages = alerts.map((a) => a.message).join("|");
@@ -325,14 +319,7 @@ function DashboardContent() {
                 <span className="sr-only">Toggle theme</span>
               </Button>
 
-              <div className="text-right">
-                <div className="text-2xl font-mono text-foreground tabular-nums">
-                  {formatTime(currentTime)}
-                </div>
-                <p className={`text-xs ${isDataStale ? "text-destructive" : "text-muted-foreground"}`}>
-                  Updated: {lastUpdatedText}
-                </p>
-              </div>
+              <LiveClock lastChanged={lastChanged} />
             </div>
           </div>
         </header>
