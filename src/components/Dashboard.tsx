@@ -5,6 +5,7 @@ import { PHPage } from "./PHPage";
 import { TemperaturePage } from "./TemperaturePage";
 import { O2Page } from "./O2Page";
 import { WaterLevelPage } from "./WaterLevelPage";
+import { WaterFlowPage } from "./WaterFlowPage";
 import { TranspirationRatePage } from "./TranspirationRatePage";
 import { UserManualPage } from "./UserManualPage";
 import { ThresholdPage } from "./ThresholdPage";
@@ -205,6 +206,18 @@ function DashboardContent() {
                   <Waves className="w-4 h-4 text-emerald-400" />
                   Water Level
                 </button>
+
+                <button
+                  onClick={() => setActiveTab("waterFlow")}
+                  className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors text-sm ${
+                    activeTab === "waterFlow"
+                      ? "bg-sidebar-accent text-white"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/20"
+                  }`}
+                >
+                  <Droplets className="w-4 h-4 text-emerald-400" />
+                  Water Flow
+                </button>
               </div>
             )}
           </div>
@@ -356,6 +369,7 @@ function DashboardContent() {
           {activeTab === "ph" && <PHPage />}
           {activeTab === "temp" && <TemperaturePage />}
           {activeTab === "water" && <WaterLevelPage />}
+          {activeTab === "waterFlow" && <WaterFlowPage />}
           {activeTab === "thresholds" && <ThresholdPage />}
           {activeTab === "manual" && <div className="max-w-7xl mx-auto"><p>Page removed.</p></div>}
           {activeTab === "export" && <ExportPage />}
