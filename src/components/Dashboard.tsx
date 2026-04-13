@@ -302,7 +302,7 @@ function DashboardContent() {
           <div className="p-6 flex items-center justify-between">
             <div>
               <h2 className="text-2xl text-foreground">Hydroponics Dashboard</h2>
-              <p className="text-sm text-muted-foreground">{formatDate(currentTime)}</p>
+              <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
             </div>
             <div className="flex items-center gap-4">
               <Button
