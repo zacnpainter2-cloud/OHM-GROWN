@@ -111,7 +111,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     setLastDataTimestamp(reading.timestamp);
 
     const newAlerts: Alert[] = [];
-    const now = Date.now();
+    const now = reading.timestamp; // Use sensor timestamp, not browser clock
     const currentAlertTypes = new Set<string>();
 
     // Check Temperature
