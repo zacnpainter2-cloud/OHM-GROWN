@@ -31,41 +31,27 @@ async function saveReadingToSupabase(reading: SensorReading) {
       return;
     }
 
-    // Check if a reading with this timestamp already exists
-    const readingTime = new Date(reading.timestamp).toISOString();
-    const { data: existing, error: checkError } = await supabase
+    // Upsert with ignoreDuplicates — silently skips if recorded_at already exists
+    const { error } = await supabase
       .from("measurements")
-      .select("id")
-      .eq("recorded_at", readingTime)
-      .limit(1);
-
-    if (checkError) {
-      console.error("Supabase duplicate check failed:", checkError);
-      return;
-    }
-
-    if (existing && existing.length > 0) {
-      return; // already saved this timestamp
-    }
-
-    const { error } = await supabase.from("measurements").insert([
-      {
-        recorded_at: new Date(reading.timestamp).toISOString(),
-        ec: reading.ec,
-        ph: reading.ph,
-        temperature: reading.temperature,
-        dissolved_oxygen: reading.o2,
-        water_level: reading.waterLevel,
-        transpiration_rate: reading.transpirationRate,
-        ec_dosing_flag: reading.ecDosingFlag ?? 0,
-        ph_dosing_flag: reading.phDosingFlag ?? 0,
-        water_flow_ok: reading.waterFlowOk ?? 1,
-        network_status: "online",
-      },
-    ]);
+      .upsert([
+        {
+          recorded_at: new Date(reading.timestamp).toISOString(),
+          ec: reading.ec,
+          ph: reading.ph,
+          temperature: reading.temperature,
+          dissolved_oxygen: reading.o2,
+          water_level: reading.waterLevel,
+          transpiration_rate: reading.transpirationRate,
+          ec_dosing_flag: reading.ecDosingFlag ?? 0,
+          ph_dosing_flag: reading.phDosingFlag ?? 0,
+          water_flow_ok: reading.waterFlowOk ?? 1,
+          network_status: "online",
+        },
+      ], { onConflict: 'recorded_at', ignoreDuplicates: true });
 
     if (error) {
-      console.error("Failed to insert reading into Supabase:", error);
+      console.error("Failed to save reading to Supabase:", error);
     }
   } catch (err) {
     console.error("Unexpected Supabase save error:", err);
@@ -272,33 +258,17 @@ export function useSensorData(): UseSensorDataResult {
           network_status: "online",
         }));
 
-        // Insert in batches of 500 to avoid payload limits
-        // Use plain insert since data starts after the latest Supabase timestamp
+        // Upsert in batches of 500 — silently skip duplicates via unique constraint
         const BATCH_SIZE = 500;
         let inserted = 0;
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
           const batch = rows.slice(i, i + BATCH_SIZE);
-          const { error: insertErr } = await supabase
+          const { error: upsertErr } = await supabase
             .from("measurements")
-            .insert(batch);
+            .upsert(batch, { onConflict: 'recorded_at', ignoreDuplicates: true });
 
-          if (insertErr) {
-            // If batch fails (e.g. duplicate), fall back to individual inserts
-            console.warn("Backfill batch insert error, falling back to individual inserts:", insertErr);
-            for (const row of batch) {
-              // Check if this timestamp already exists before inserting
-              const { data: existing } = await supabase
-                .from("measurements")
-                .select("id")
-                .eq("recorded_at", row.recorded_at)
-                .limit(1);
-              if (existing && existing.length > 0) continue;
-
-              const { error: singleErr } = await supabase
-                .from("measurements")
-                .insert([row]);
-              if (!singleErr) inserted++;
-            }
+          if (upsertErr) {
+            console.warn("Backfill upsert error:", upsertErr);
           } else {
             inserted += batch.length;
           }
