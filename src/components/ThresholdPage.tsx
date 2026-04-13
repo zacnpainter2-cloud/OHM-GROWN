@@ -106,7 +106,7 @@ export function ThresholdPage() {
   }, [contextThresholds, contextSetpoints, tempUnit, waterLevelUnit]);
 
   const validationErrors = useMemo(() => {
-    const errors: Partial<Record<keyof LocalThresholdValues, string>> = {};
+    const errors: Partial<Record<keyof LocalThresholdValues | 'ecSetpoint' | 'phSetpoint', string>> = {};
     const params: (keyof LocalThresholdValues)[] = ['ec', 'ph', 'temperature', 'o2', 'waterLevel', 'transpiration'];
     for (const param of params) {
       const lower = parseFloat(localThresholds[param].lower);
@@ -115,8 +115,28 @@ export function ThresholdPage() {
         errors[param] = 'Lower threshold cannot be greater than upper threshold';
       }
     }
+
+    // Validate setpoints are within their threshold range
+    const ecSetpoint = parseFloat(localSetpoints.ec);
+    const ecLower = parseFloat(localThresholds.ec.lower);
+    const ecUpper = parseFloat(localThresholds.ec.upper);
+    if (!isNaN(ecSetpoint) && !isNaN(ecLower) && !isNaN(ecUpper)) {
+      if (ecSetpoint < ecLower || ecSetpoint > ecUpper) {
+        errors.ecSetpoint = `Setpoint must be between ${localThresholds.ec.lower} and ${localThresholds.ec.upper}`;
+      }
+    }
+
+    const phSetpoint = parseFloat(localSetpoints.ph);
+    const phLower = parseFloat(localThresholds.ph.lower);
+    const phUpper = parseFloat(localThresholds.ph.upper);
+    if (!isNaN(phSetpoint) && !isNaN(phLower) && !isNaN(phUpper)) {
+      if (phSetpoint < phLower || phSetpoint > phUpper) {
+        errors.phSetpoint = `Setpoint must be between ${localThresholds.ph.lower} and ${localThresholds.ph.upper}`;
+      }
+    }
+
     return errors;
-  }, [localThresholds]);
+  }, [localThresholds, localSetpoints]);
 
   const hasErrors = Object.keys(validationErrors).length > 0;
 
@@ -274,6 +294,9 @@ export function ThresholdPage() {
                   placeholder="e.g., 7.0"
                 />
               </div>
+              {validationErrors.phSetpoint && (
+                <p className="text-sm text-destructive">{validationErrors.phSetpoint}</p>
+              )}
             </CardContent>
           </Card>
 
@@ -300,6 +323,9 @@ export function ThresholdPage() {
                   placeholder="e.g., 1500"
                 />
               </div>
+              {validationErrors.ecSetpoint && (
+                <p className="text-sm text-destructive">{validationErrors.ecSetpoint}</p>
+              )}
             </CardContent>
           </Card>
         </div>
