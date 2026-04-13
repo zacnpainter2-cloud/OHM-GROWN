@@ -13,15 +13,17 @@ export function HomePage() {
   const { } = useAlerts();
   const { readings, latestReading, isLoading, error } = useSensorData();
 
-  // Convert data based on selected units
+  // Convert data based on selected units — show last 24 hours
   const data = useMemo(() => {
     if (readings.length === 0) return [];
-    
-    return readings.map(d => ({
-      date: new Date(d.timestamp).toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }),
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    return readings
+      .filter(d => d.timestamp >= cutoff)
+      .map(d => ({
+        date: new Date(d.timestamp).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
       ec: d.ec,
       ph: d.ph,
       temp: tempUnit === "C" ? d.temperature : (d.temperature * 9 / 5) + 32,
@@ -76,7 +78,7 @@ export function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle>EC (Electrical Conductivity)</CardTitle>
-            <CardDescription>Last 7 days</CardDescription>
+            <CardDescription>Last 24 hours</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -120,7 +122,7 @@ export function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle>pH Level</CardTitle>
-            <CardDescription>Last 7 days</CardDescription>
+            <CardDescription>Last 24 hours</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -164,7 +166,7 @@ export function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle>Temperature</CardTitle>
-            <CardDescription>Last 7 days</CardDescription>
+            <CardDescription>Last 24 hours</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -208,7 +210,7 @@ export function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle>Water Level</CardTitle>
-            <CardDescription>Last 7 days</CardDescription>
+            <CardDescription>Last 24 hours</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
