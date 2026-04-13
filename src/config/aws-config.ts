@@ -29,5 +29,5 @@ export const AWS_CONFIG = {
   
   // Data refresh interval in milliseconds (30 seconds = 30000)
   // Sensor data is sent every 5 minutes, polling every 30 seconds for faster updates
-  REFRESH_INTERVAL: 30000,
+  REFRESH_INTERVAL: 10000,
 };
