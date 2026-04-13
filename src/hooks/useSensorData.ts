@@ -183,9 +183,8 @@ export function useSensorData(): UseSensorDataResult {
           setLatestReading(newReading);
           latestReadingRef.current = newReading;
           setLastUpdated(newReading.timestamp);
-          await saveReadingToSupabase(newReading);
 
-          // Append the new reading instead of re-fetching entire history
+          // Update UI immediately, then save to Supabase in background
           setReadings(prev => {
             // Avoid duplicate timestamps
             if (prev.length > 0 && prev[prev.length - 1].timestamp === newReading.timestamp) {
@@ -196,6 +195,11 @@ export function useSensorData(): UseSensorDataResult {
             const trimmed = prev.filter(r => r.timestamp >= cutoff);
             return [...trimmed, newReading];
           });
+
+          // Fire-and-forget Supabase save (don't block UI)
+          saveReadingToSupabase(newReading).catch(err =>
+            console.error('Background save failed:', err)
+          );
         }
       } else {
         console.warn("AWS latest reading fetch failed:", response.error);
@@ -297,14 +301,20 @@ export function useSensorData(): UseSensorDataResult {
 
         console.log(`Backfill complete: imported ${inserted} readings`);
 
-        // Reload readings from Supabase to show the backfilled data
-        const dbReadings = await fetchReadingsFromSupabase();
-        setReadings(dbReadings);
-        if (dbReadings.length > 0) {
-          const latest = dbReadings[dbReadings.length - 1];
-          setLatestReading(latest);
-          latestReadingRef.current = latest;
-          setLastUpdated(latest.timestamp);
+        // Merge backfill data into existing state (don't re-fetch entire history)
+        if (result.data && result.data.length > 0) {
+          const validBackfill = result.data.filter(
+            (r) => !(r.temperature === 0 && r.ph === 0 && r.ec === 0)
+          );
+          if (validBackfill.length > 0) {
+            setReadings(prev => {
+              const existingTimestamps = new Set(prev.map(r => r.timestamp));
+              const newOnly = validBackfill.filter(r => !existingTimestamps.has(r.timestamp));
+              if (newOnly.length === 0) return prev;
+              const merged = [...prev, ...newOnly].sort((a, b) => a.timestamp - b.timestamp);
+              return merged;
+            });
+          }
         }
       } catch (err) {
         console.error("Backfill failed:", err);
