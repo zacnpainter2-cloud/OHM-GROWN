@@ -254,16 +254,25 @@ export function useSensorData(): UseSensorDataResult {
         }));
 
         // Insert in batches of 500 to avoid payload limits
+        // Use upsert with ignoreDuplicates to prevent duplicate recorded_at
+        // from causing entire batch failures
         const BATCH_SIZE = 500;
         let inserted = 0;
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
           const batch = rows.slice(i, i + BATCH_SIZE);
           const { error: insertErr } = await supabase
             .from("measurements")
-            .insert(batch);
+            .upsert(batch, { onConflict: 'recorded_at', ignoreDuplicates: true });
 
           if (insertErr) {
-            console.error("Backfill insert error:", insertErr);
+            // Fall back to individual inserts if upsert fails (e.g. no unique constraint)
+            console.warn("Backfill upsert error, falling back to individual inserts:", insertErr);
+            for (const row of batch) {
+              const { error: singleErr } = await supabase
+                .from("measurements")
+                .insert([row]);
+              if (!singleErr) inserted++;
+            }
           } else {
             inserted += batch.length;
           }

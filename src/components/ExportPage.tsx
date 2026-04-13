@@ -384,24 +384,32 @@ export function ExportPage() {
       const startISO = from.toISOString();
       const endISO = now.toISOString();
 
-      let query = supabase
-        .from("measurements")
-        .select("*")
-        .gte("recorded_at", startISO)
-        .lte("recorded_at", endISO)
-        .order("recorded_at", { ascending: true })
-        .limit(10000);
+      // Paginate to get all results (Supabase returns max 1000 rows per request)
+      const PAGE_SIZE = 1000;
+      const allRows: any[] = [];
+      let pageFrom = 0;
+      while (true) {
+        const { data, error: fetchErr } = await supabase
+          .from("measurements")
+          .select("*")
+          .gte("recorded_at", startISO)
+          .lte("recorded_at", endISO)
+          .order("recorded_at", { ascending: true })
+          .range(pageFrom, pageFrom + PAGE_SIZE - 1);
 
-      const { data, error: fetchErr } = await query;
-
-      if (fetchErr) {
-        console.error("Supabase quick export error:", fetchErr);
-        toast.error("Failed to fetch data: " + fetchErr.message);
-        setIsExporting(false);
-        return;
+        if (fetchErr) {
+          console.error("Supabase quick export error:", fetchErr);
+          toast.error("Failed to fetch data: " + fetchErr.message);
+          setIsExporting(false);
+          return;
+        }
+        if (!data || data.length === 0) break;
+        allRows.push(...data);
+        if (data.length < PAGE_SIZE) break;
+        pageFrom += PAGE_SIZE;
       }
 
-      const readings = (data || []).map((row: any) => ({
+      const readings = allRows.map((row: any) => ({
         timestamp: new Date(row.recorded_at).getTime(),
         ec: Number(row.ec ?? 0),
         ph: Number(row.ph ?? 0),
