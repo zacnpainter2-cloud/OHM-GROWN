@@ -94,10 +94,9 @@ export function PHPage() {
   
   const currentPH = latestReading?.ph ?? null;
   
-  // Determine status based on typical range
+  // Determine status based on threshold settings
   const getStatus = (value: number) => {
-    if (value < 5.5 || value > 8.5) return { label: "Warning", variant: "destructive" as const };
-    if (value < 6.0 || value > 7.5) return { label: "Caution", variant: "secondary" as const };
+    if (value < thresholds.ph.lower || value > thresholds.ph.upper) return { label: "Warning", variant: "destructive" as const };
     return { label: "Normal", variant: "default" as const };
   };
   

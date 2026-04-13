@@ -101,10 +101,9 @@ export function ECPage() {
   
   const currentEC = latestReading?.ec ?? null;
   
-  // Determine status based on typical range (now in μS/cm)
+  // Determine status based on threshold settings
   const getStatus = (value: number) => {
-    if (value < 1000 || value > 2000) return { label: "Warning", variant: "destructive" as const };
-    if (value < 1200 || value > 1800) return { label: "Caution", variant: "secondary" as const };
+    if (value < thresholds.ec.lower || value > thresholds.ec.upper) return { label: "Warning", variant: "destructive" as const };
     return { label: "Normal", variant: "default" as const };
   };
   
