@@ -169,9 +169,10 @@ export function useSensorData(): UseSensorDataResult {
       if (response.success && response.data) {
         const newReading = response.data;
 
-        // Only update if sensor values actually changed
+        // Check if this is a genuinely new reading (different timestamp OR different values)
         const prev = latestReadingRef.current;
-        const isNewData = !prev ||
+        const isNewTimestamp = !prev || prev.timestamp !== newReading.timestamp;
+        const isNewValues = !prev ||
           prev.ec !== newReading.ec ||
           prev.ph !== newReading.ph ||
           prev.temperature !== newReading.temperature ||
@@ -179,10 +180,14 @@ export function useSensorData(): UseSensorDataResult {
           prev.waterLevel !== newReading.waterLevel ||
           prev.transpirationRate !== newReading.transpirationRate;
 
-        if (isNewData) {
+        // Always update lastUpdated when we get a new timestamp (proves connection is alive)
+        if (isNewTimestamp) {
+          setLastUpdated(newReading.timestamp);
+        }
+
+        if (isNewTimestamp || isNewValues) {
           setLatestReading(newReading);
           latestReadingRef.current = newReading;
-          setLastUpdated(newReading.timestamp);
 
           // Update UI immediately, then save to Supabase in background
           setReadings(prev => {
@@ -377,7 +382,8 @@ export function useLatestReading() {
         const newReading = response.data;
         const prev = readingRef.current;
 
-        const isNewData = !prev ||
+        const isNewTimestamp = !prev || prev.timestamp !== newReading.timestamp;
+        const isNewValues = !prev ||
           prev.ec !== newReading.ec ||
           prev.ph !== newReading.ph ||
           prev.temperature !== newReading.temperature ||
@@ -387,7 +393,7 @@ export function useLatestReading() {
           prev.ecDosingFlag !== newReading.ecDosingFlag ||
           prev.phDosingFlag !== newReading.phDosingFlag;
 
-        if (isNewData) {
+        if (isNewTimestamp || isNewValues) {
           setReading(newReading);
           readingRef.current = newReading;
           setLastChanged(newReading.timestamp);
