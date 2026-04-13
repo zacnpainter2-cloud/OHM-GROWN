@@ -5,13 +5,11 @@ import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { useSensorData } from "../hooks/useSensorData";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
-import { useProject } from "./ProjectContext";
 import { useThresholds } from "./ThresholdContext";
 
 export function PHPage() {
-  const { viewingProject } = useProject();
   const { thresholds } = useThresholds();
-  const { readings, latestReading, isLoading } = useSensorData(viewingProject?.id);
+  const { readings, latestReading, isLoading } = useSensorData();
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");
     return saved === "24h" || saved === "7d" || saved === "1m" ? saved : "24h";

@@ -23,7 +23,7 @@ const MAX_READINGS = 51840; // 180 days at 5-minute intervals
 /**
  * Save latest AWS reading into Supabase if it doesn't already exist
  */
-async function saveReadingToSupabase(reading: SensorReading, projectId: number | null) {
+async function saveReadingToSupabase(reading: SensorReading) {
   try {
     // Skip saving bad readings with all-zero critical values
     if (reading.temperature === 0 && reading.ph === 0 && reading.ec === 0) {
@@ -61,7 +61,6 @@ async function saveReadingToSupabase(reading: SensorReading, projectId: number |
         ph_dosing_flag: reading.phDosingFlag ?? 0,
         water_flow_ok: reading.waterFlowOk ?? 1,
         network_status: "online",
-        project_id: projectId,
       },
     ]);
 
@@ -77,7 +76,7 @@ async function saveReadingToSupabase(reading: SensorReading, projectId: number |
  * Load last 180 days of readings from Supabase
  * Paginates in chunks of 1000 (Supabase default row limit)
  */
-async function fetchReadingsFromSupabase(projectId?: number | null): Promise<SensorReading[]> {
+async function fetchReadingsFromSupabase(): Promise<SensorReading[]> {
   try {
     const cutoff = new Date(
       Date.now() - 180 * 24 * 60 * 60 * 1000
@@ -95,10 +94,6 @@ async function fetchReadingsFromSupabase(projectId?: number | null): Promise<Sen
         .gte("recorded_at", cutoff)
         .order("recorded_at", { ascending: true })
         .range(from, to);
-
-      if (projectId != null) {
-        query = query.eq("project_id", projectId);
-      }
 
       const { data, error } = await query;
 
@@ -137,7 +132,7 @@ async function fetchReadingsFromSupabase(projectId?: number | null): Promise<Sen
   }
 }
 
-export function useSensorData(projectId?: number | null): UseSensorDataResult {
+export function useSensorData(): UseSensorDataResult {
   const [readings, setReadings] = useState<SensorReading[]>([]);
   const [latestReading, setLatestReading] = useState<SensorReading | null>(null);
   const latestReadingRef = useRef<SensorReading | null>(null);
@@ -145,22 +140,6 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const hasBackfilled = useRef(false);
-  const projectIdRef = useRef(projectId);
-
-  // Track project changes
-  useEffect(() => {
-    projectIdRef.current = projectId;
-  }, [projectId]);
-
-  // Reload data when project changes
-  useEffect(() => {
-    if (projectId == null) return;
-    hasBackfilled.current = false;
-    latestReadingRef.current = null;
-    setReadings([]);
-    setLatestReading(null);
-    setIsLoading(true);
-  }, [projectId]);
 
   const loadData = useCallback(async () => {
     try {
@@ -190,10 +169,10 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
           setLatestReading(newReading);
           latestReadingRef.current = newReading;
           setLastUpdated(newReading.timestamp);
-          await saveReadingToSupabase(newReading, projectIdRef.current ?? null);
+          await saveReadingToSupabase(newReading);
 
           // Only reload from Supabase when we have new data
-          const dbReadings = await fetchReadingsFromSupabase(projectIdRef.current);
+          const dbReadings = await fetchReadingsFromSupabase();
           setReadings(dbReadings);
         }
       } else {
@@ -201,7 +180,7 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
 
         // Only load from Supabase on first load or if we have no data
         if (!latestReadingRef.current) {
-          const dbReadings = await fetchReadingsFromSupabase(projectIdRef.current);
+          const dbReadings = await fetchReadingsFromSupabase();
           setReadings(dbReadings);
           if (dbReadings.length > 0) {
             const fallback = dbReadings[dbReadings.length - 1];
@@ -217,7 +196,7 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
     } finally {
       setIsLoading(false);
     }
-  }, [projectId]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -226,21 +205,16 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
   // Backfill: on first load, fetch any DynamoDB readings missed while site was closed
   useEffect(() => {
     if (hasBackfilled.current) return;
-    if (projectId == null) return;
     hasBackfilled.current = true;
 
     (async () => {
       try {
-        // Find the most recent Supabase entry for this project
+        // Find the most recent Supabase entry
         let latestQuery = supabase
           .from("measurements")
           .select("recorded_at")
           .order("recorded_at", { ascending: false })
           .limit(1);
-
-        if (projectId != null) {
-          latestQuery = latestQuery.eq("project_id", projectId);
-        }
 
         const { data: latestRow, error: latestErr } = await latestQuery.single();
 
@@ -277,7 +251,6 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
           ph_dosing_flag: r.phDosingFlag ?? 0,
           water_flow_ok: r.waterFlowOk ?? 1,
           network_status: "online",
-          project_id: projectId,
         }));
 
         // Insert in batches of 500 to avoid payload limits
@@ -299,7 +272,7 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
         console.log(`Backfill complete: imported ${inserted} readings`);
 
         // Reload readings from Supabase to show the backfilled data
-        const dbReadings = await fetchReadingsFromSupabase(projectId);
+        const dbReadings = await fetchReadingsFromSupabase();
         setReadings(dbReadings);
         if (dbReadings.length > 0) {
           const latest = dbReadings[dbReadings.length - 1];
@@ -311,7 +284,7 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
         console.error("Backfill failed:", err);
       }
     })();
-  }, [projectId]);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -346,17 +319,12 @@ export function useSensorData(projectId?: number | null): UseSensorDataResult {
  * Hook for fetching only the latest reading
  * Also syncs latest reading into Supabase
  */
-export function useLatestReading(projectId?: number | null) {
+export function useLatestReading() {
   const [reading, setReading] = useState<SensorReading | null>(null);
   const readingRef = useRef<SensorReading | null>(null);
   const [lastChanged, setLastChanged] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const projectIdRef = useRef(projectId);
-
-  useEffect(() => {
-    projectIdRef.current = projectId;
-  }, [projectId]);
 
   const loadLatest = useCallback(async () => {
     try {
@@ -386,12 +354,12 @@ export function useLatestReading(projectId?: number | null) {
           setReading(newReading);
           readingRef.current = newReading;
           setLastChanged(newReading.timestamp);
-          await saveReadingToSupabase(newReading, projectIdRef.current ?? null);
+          await saveReadingToSupabase(newReading);
         }
       } else {
         // fallback: get latest from Supabase if AWS fails
         if (!readingRef.current) {
-          const readings = await fetchReadingsFromSupabase(projectIdRef.current);
+          const readings = await fetchReadingsFromSupabase();
           if (readings.length > 0) {
             const fallback = readings[readings.length - 1];
             setReading(fallback);

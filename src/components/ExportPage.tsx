@@ -4,7 +4,6 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useDosing } from "./DosingContext";
 import { useAlerts } from "./AlertContext";
-import { useProject } from "./ProjectContext";
 import { supabase } from "../lib/supabaseClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -19,7 +18,6 @@ type TimeRangeOption = "1h" | "3h" | "6h" | "12h" | "24h" | "3d" | "7d" | "14d" 
 export function ExportPage() {
   const { dosingHistory } = useDosing();
   const { alertHistory } = useAlerts();
-  const { viewingProject } = useProject();
   
   const [selectedParameters, setSelectedParameters] = useState({
     ec: false,
@@ -265,10 +263,6 @@ export function ExportPage() {
           .order("recorded_at", { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
 
-        if (viewingProject?.id != null) {
-          query = query.eq("project_id", viewingProject.id);
-        }
-
         const { data, error: fetchErr } = await query;
         if (fetchErr) {
           console.error("Supabase export fetch error:", fetchErr);
@@ -397,10 +391,6 @@ export function ExportPage() {
         .lte("recorded_at", endISO)
         .order("recorded_at", { ascending: true })
         .limit(10000);
-
-      if (viewingProject?.id != null) {
-        query = query.eq("project_id", viewingProject.id);
-      }
 
       const { data, error: fetchErr } = await query;
 

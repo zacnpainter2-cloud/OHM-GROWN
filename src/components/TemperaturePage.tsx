@@ -6,13 +6,11 @@ import { useSensorData } from "../hooks/useSensorData";
 import { useUnits } from "./UnitContext";
 import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
-import { useProject } from "./ProjectContext";
 import { useThresholds } from "./ThresholdContext";
 
 export function TemperaturePage() {
-  const { viewingProject } = useProject();
   const { thresholds } = useThresholds();
-  const { readings, latestReading, isLoading } = useSensorData(viewingProject?.id);
+  const { readings, latestReading, isLoading } = useSensorData();
   const { tempUnit, setTempUnit } = useUnits();
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");

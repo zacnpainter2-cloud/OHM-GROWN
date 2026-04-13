@@ -7,13 +7,11 @@ import { Wrench, Loader2, AlertCircle } from "lucide-react";
 import { useUnits } from "./UnitContext";
 import { useAlerts } from "./AlertContext";
 import { useSensorData } from "../hooks/useSensorData";
-import { useProject } from "./ProjectContext";
 
 export function HomePage() {
   const { tempUnit, waterLevelUnit } = useUnits();
   const { } = useAlerts();
-  const { viewingProject } = useProject();
-  const { readings, latestReading, isLoading, error } = useSensorData(viewingProject?.id);
+  const { readings, latestReading, isLoading, error } = useSensorData();
 
   // Convert data based on selected units
   const data = useMemo(() => {

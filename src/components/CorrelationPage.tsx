@@ -7,7 +7,6 @@ import { Label } from "./ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { useSensorData } from "../hooks/useSensorData";
-import { useProject } from "./ProjectContext";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ZAxis } from "recharts";
 import { TrendingUp, TrendingDown, AlertTriangle, GitCompare, Activity, CalendarIcon, Download, Image as ImageIcon } from "lucide-react";
 import { TimeRangeControls, TimeRange, ComparisonPeriod } from "./TimeRangeControls";
@@ -44,8 +43,7 @@ const PARAMETER_UNITS: Record<ParameterKey, string> = {
 };
 
 export function CorrelationPage() {
-  const { viewingProject } = useProject();
-  const { readings } = useSensorData(viewingProject?.id);
+  const { readings } = useSensorData();
   const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>("none");
   const [selectedParam1, setSelectedParam1] = useState<ParameterKey>("ec");

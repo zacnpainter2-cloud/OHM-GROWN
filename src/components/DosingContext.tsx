@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import type { SensorReading } from "../types/sensor-data";
 import { supabase } from "../lib/supabaseClient";
-import { useProject } from "./ProjectContext";
 import { useThresholds } from "./ThresholdContext";
 
 export interface DosingEvent {
@@ -22,7 +21,6 @@ const DosingContext = createContext<DosingContextType | undefined>(undefined);
 
 export function DosingProvider({ children }: { children: ReactNode }) {
   const [dosingHistory, setDosingHistory] = useState<DosingEvent[]>([]);
-  const { viewingProject, activeProject } = useProject();
   const { thresholds } = useThresholds();
 
   // Track last flag states in refs (stable across renders, no re-render loops)
@@ -31,14 +29,12 @@ export function DosingProvider({ children }: { children: ReactNode }) {
   // Prevent duplicate processing when the same reading triggers the effect multiple times
   const lastProcessedTimestampRef = useRef<number | undefined>(undefined);
 
-  // Load dosing history from Supabase when viewing project changes
+  // Load dosing history from Supabase
   useEffect(() => {
-    if (!viewingProject) return;
     (async () => {
       const { data, error } = await supabase
         .from("dosing_history")
         .select("*")
-        .eq("project_id", viewingProject.id)
         .order("occurred_at", { ascending: false })
         .limit(10000);
 
@@ -67,7 +63,7 @@ export function DosingProvider({ children }: { children: ReactNode }) {
         lastPHFlagRef.current = lastPH.action === "started" ? 1 : 0;
       }
     })();
-  }, [viewingProject]);
+  }, []);
 
   const checkDosingEvents = useCallback((reading: SensorReading) => {
     const now = reading.timestamp;
@@ -133,34 +129,29 @@ export function DosingProvider({ children }: { children: ReactNode }) {
     if (newEvents.length > 0) {
       setDosingHistory((prev) => [...newEvents, ...prev].slice(0, 10000)); // Keep last 10,000 events
       // Save new events to Supabase
-      if (activeProject) {
-        newEvents.forEach((event) => {
-          supabase.from("dosing_history").insert([{
-            project_id: activeProject.id,
-            event_type: event.type,
-            action: event.action,
-            sensor_value: event.value ?? null,
-            occurred_at: new Date(event.timestamp).toISOString(),
-          }]).then(({ error }) => {
-            if (error) console.error("Failed to save dosing event:", error);
-          });
+      newEvents.forEach((event) => {
+        supabase.from("dosing_history").insert([{
+          event_type: event.type,
+          action: event.action,
+          sensor_value: event.value ?? null,
+          occurred_at: new Date(event.timestamp).toISOString(),
+        }]).then(({ error }) => {
+          if (error) console.error("Failed to save dosing event:", error);
         });
-      }
+      });
     }
-  }, [activeProject, thresholds, dosingHistory]);
+  }, [thresholds, dosingHistory]);
 
   const clearDosingHistory = useCallback(() => {
     setDosingHistory([]);
-    if (viewingProject) {
-      supabase
-        .from("dosing_history")
-        .delete()
-        .eq("project_id", viewingProject.id)
-        .then(({ error }) => {
-          if (error) console.error("Failed to clear dosing history:", error);
-        });
-    }
-  }, [viewingProject]);
+    supabase
+      .from("dosing_history")
+      .delete()
+      .neq("id", 0)
+      .then(({ error }) => {
+        if (error) console.error("Failed to clear dosing history:", error);
+      });
+  }, []);
 
   return (
     <DosingContext.Provider value={{ dosingHistory, checkDosingEvents, clearDosingHistory }}>

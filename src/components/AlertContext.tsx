@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback, useRef } from "react";
 import type { SensorReading } from "../types/sensor-data";
 import { supabase } from "../lib/supabaseClient";
-import { useProject } from "./ProjectContext";
 
 export interface Alert {
   id: string;
@@ -45,16 +44,13 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   const [alertHistory, setAlertHistory] = useState<AlertHistoryEntry[]>([]);
   const [lastDataTimestamp, setLastDataTimestamp] = useState<number>(Date.now());
   const activeAlertsRef = useRef<Map<string, AlertHistoryEntry>>(new Map());
-  const { viewingProject, activeProject } = useProject();
 
-  // Load alert history from Supabase when viewing project changes
+  // Load alert history from Supabase
   useEffect(() => {
-    if (!viewingProject) return;
     (async () => {
       const { data, error } = await supabase
         .from("alert_history")
         .select("*")
-        .eq("project_id", viewingProject.id)
         .order("start_time", { ascending: false })
         .limit(10000);
 
@@ -75,7 +71,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         }))
       );
     })();
-  }, [viewingProject]);
+  }, []);
 
   // Check for network connectivity alert (no data for 10 minutes)
   useEffect(() => {
@@ -259,21 +255,18 @@ export function AlertProvider({ children }: { children: ReactNode }) {
     if (endedAlerts.length > 0) {
       setAlertHistory((prev) => [...endedAlerts, ...prev].slice(0, 10000));
       // Save ended alerts to Supabase
-      if (activeProject) {
-        endedAlerts.forEach((entry) => {
-          supabase.from("alert_history").insert([{
-            project_id: activeProject.id,
-            alert_type: entry.type,
-            severity: entry.severity,
-            message: entry.message,
-            start_time: new Date(entry.startTime).toISOString(),
-            end_time: entry.endTime ? new Date(entry.endTime).toISOString() : null,
-            duration_ms: entry.duration ?? null,
-          }]).then(({ error }) => {
-            if (error) console.error("Failed to save alert history:", error);
-          });
+      endedAlerts.forEach((entry) => {
+        supabase.from("alert_history").insert([{
+          alert_type: entry.type,
+          severity: entry.severity,
+          message: entry.message,
+          start_time: new Date(entry.startTime).toISOString(),
+          end_time: entry.endTime ? new Date(entry.endTime).toISOString() : null,
+          duration_ms: entry.duration ?? null,
+        }]).then(({ error }) => {
+          if (error) console.error("Failed to save alert history:", error);
         });
-      }
+      });
     }
 
     // Update alerts - remove old alerts of the same type, add new ones
@@ -301,16 +294,14 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
   const clearAlertHistory = useCallback(() => {
     setAlertHistory([]);
-    if (viewingProject) {
-      supabase
-        .from("alert_history")
-        .delete()
-        .eq("project_id", viewingProject.id)
-        .then(({ error }) => {
-          if (error) console.error("Failed to clear alert history:", error);
-        });
-    }
-  }, [viewingProject]);
+    supabase
+      .from("alert_history")
+      .delete()
+      .neq("id", 0)
+      .then(({ error }) => {
+        if (error) console.error("Failed to clear alert history:", error);
+      });
+  }, []);
 
   // Merge active (ongoing) alerts into history so they appear on the history page
   const fullAlertHistory = useMemo(() => {

@@ -8,14 +8,12 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { StatisticsCard } from "./StatisticsCard";
 import { useMemo } from "react";
-import { useProject } from "./ProjectContext";
 import { useThresholds } from "./ThresholdContext";
 
 export function WaterLevelPage() {
   const { waterLevelUnit: unit, setWaterLevelUnit } = useUnits();
-  const { viewingProject } = useProject();
   const { thresholds } = useThresholds();
-  const { readings, latestReading, isLoading, error } = useSensorData(viewingProject?.id);
+  const { readings, latestReading, isLoading, error } = useSensorData();
   const [timeRange, setTimeRangeState] = useState<"24h" | "7d" | "1m">(() => {
     const saved = localStorage.getItem("hydro-chart-range");
     return saved === "24h" || saved === "7d" || saved === "1m" ? saved : "24h";
