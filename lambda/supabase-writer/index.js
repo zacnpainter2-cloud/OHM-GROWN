@@ -144,9 +144,12 @@ async function checkAlerts(parsed, now) {
     waterLevel:  { lower: Number(s.water_level_lower_threshold ?? 70),   upper: Number(s.water_level_upper_threshold ?? 95) },
   };
 
-  // Build a map of currently active alerts by type
+  // Build a map of currently active alerts by type (array to handle duplicates)
   var activeMap = {};
-  (activeAlerts || []).forEach(function(a) { activeMap[a.alert_type] = a; });
+  (activeAlerts || []).forEach(function(a) {
+    if (!activeMap[a.alert_type]) activeMap[a.alert_type] = [];
+    activeMap[a.alert_type].push(a);
+  });
 
   var checks = [
     { type: "temperature", value: parsed.temperature, t: thresholds.temperature, label: "Temperature" },
@@ -166,7 +169,7 @@ async function checkAlerts(parsed, now) {
       currentAlertTypes[c.type] = true;
       var direction = c.value < c.t.lower ? "Too Low" : "Too High";
 
-      if (!activeMap[c.type]) {
+      if (!activeMap[c.type] || activeMap[c.type].length === 0) {
         await sbPost("alert_history", {
           alert_type: c.type,
           severity: "critical",
@@ -183,7 +186,7 @@ async function checkAlerts(parsed, now) {
   // Check water flow
   if (!parsed.waterFlowOk) {
     currentAlertTypes["waterFlow"] = true;
-    if (!activeMap["waterFlow"]) {
+    if (!activeMap["waterFlow"] || activeMap["waterFlow"].length === 0) {
       await sbPost("alert_history", {
         alert_type: "waterFlow",
         severity: "critical",
@@ -196,21 +199,25 @@ async function checkAlerts(parsed, now) {
     }
   }
 
-  // End alerts that are no longer active
+  // End alerts that are no longer active (close ALL duplicates for each type)
   var keys = Object.keys(activeMap);
   for (var j = 0; j < keys.length; j++) {
     var type = keys[j];
     if (!currentAlertTypes[type]) {
-      var alert = activeMap[type];
-      var startMs = new Date(alert.start_time).getTime();
+      // Use the earliest start_time for duration calculation
+      var earliest = activeMap[type].reduce(function(min, a) {
+        return new Date(a.start_time) < new Date(min.start_time) ? a : min;
+      });
+      var startMs = new Date(earliest.start_time).getTime();
       var endMs = new Date(now).getTime();
       var duration = endMs - startMs;
 
-      await sbPatch("alert_history", "id=eq." + alert.id, {
+      // Patch by type + open status to close ALL duplicates at once
+      await sbPatch("alert_history", "alert_type=eq." + type + "&end_time=is.null", {
         end_time: now,
         duration_ms: duration,
       });
-      console.log("Alert ENDED: " + type + " (duration " + Math.round(duration / 1000) + "s)");
+      console.log("Alert ENDED: " + type + " (closed " + activeMap[type].length + ", duration " + Math.round(duration / 1000) + "s)");
     }
   }
 
