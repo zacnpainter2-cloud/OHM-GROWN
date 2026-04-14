@@ -109,9 +109,11 @@ export function AlertProvider({ children }: { children: ReactNode }) {
 
   const checkAlerts = useCallback((reading: SensorReading, thresholds: ThresholdValues) => {
     // Only update last data timestamp if this is a genuinely newer reading
+    // Use the reading's actual timestamp (not Date.now()) so loading old
+    // Supabase data on page open doesn't reset the 10-minute countdown
     if (reading.timestamp > lastCheckedReadingRef.current) {
       lastCheckedReadingRef.current = reading.timestamp;
-      setLastDataTimestamp(Date.now());
+      setLastDataTimestamp(reading.timestamp);
     }
 
     const newAlerts: Alert[] = [];
