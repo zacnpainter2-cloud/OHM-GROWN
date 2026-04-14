@@ -107,8 +107,8 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   }, [lastDataTimestamp]);
 
   const checkAlerts = useCallback((reading: SensorReading, thresholds: ThresholdValues) => {
-    // Update last data timestamp
-    setLastDataTimestamp(reading.timestamp);
+    // Update last data timestamp using browser clock (proves we just received data NOW)
+    setLastDataTimestamp(Date.now());
 
     const newAlerts: Alert[] = [];
     const now = reading.timestamp; // Use sensor timestamp, not browser clock
