@@ -310,45 +310,62 @@ export async function fetchReadingsFromDynamo(
   endTimeSec: number
 ): Promise<ApiResponse<SensorReading[]>> {
   try {
-    const url = `${AWS_CONFIG.API_GATEWAY_URL}/query?deviceID=${AWS_CONFIG.DEVICE_ID}&startTime=${startTimeSec}&endTime=${endTimeSec}`;
+    const allReadings: SensorReading[] = [];
+    let currentStart = startTimeSec;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // Fetch in 1-hour chunks to avoid API Gateway / DynamoDB response size limits
+    const ONE_HOUR = 3600;
+    while (currentStart < endTimeSec) {
+      const chunkEnd = Math.min(currentStart + ONE_HOUR, endTimeSec);
+      const url = `${AWS_CONFIG.API_GATEWAY_URL}/query?deviceID=${AWS_CONFIG.DEVICE_ID}&startTime=${currentStart}&endTime=${chunkEnd}`;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DynamoDB query failed: ${response.status} - ${errorText}`);
+      console.log(`DynamoDB query: ${new Date(currentStart * 1000).toISOString()} → ${new Date(chunkEnd * 1000).toISOString()}`);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`DynamoDB chunk query failed: ${response.status} - ${errorText}`);
+        // Continue to next chunk instead of failing entirely
+        currentStart = chunkEnd;
+        continue;
+      }
+
+      const data = await response.json();
+
+      if (data.telemetry && data.telemetry.length > 0) {
+        const readings = data.telemetry
+          .map((item: any) => {
+            const parsed = item.parsed || {};
+            return {
+              deviceId: item.deviceID || AWS_CONFIG.DEVICE_ID,
+              timestamp: item.ts * 1000,
+              ec: parsed.ec_u16 || parsed.eh_u16 || parsed.ec_u8 || 0,
+              ph: (parsed.ph_u8 || 0) / 10,
+              temperature: (parsed.temp_i16 || 0) / 10,
+              o2: (parsed.o2_u16 || 0) / 10,
+              waterLevel: (parsed.waterLevel_u8 || 0) / 10,
+              transpirationRate: parsed.transpiration_u8 || 0,
+              ecDosingFlag: parsed.ecDosing ? 1 : 0,
+              phDosingFlag: parsed.phDosing ? 1 : 0,
+              waterFlowOk: parsed.waterFlowOk ? 1 : 0,
+            };
+          })
+          .filter((r: SensorReading) => !(r.temperature === 0 && r.ph === 0 && r.ec === 0));
+
+        allReadings.push(...readings);
+        console.log(`  → got ${readings.length} readings (total: ${allReadings.length})`);
+      }
+
+      currentStart = chunkEnd;
     }
 
-    const data = await response.json();
-
-    if (!data.telemetry || data.telemetry.length === 0) {
-      return { success: true, data: [] };
-    }
-
-    const readings: SensorReading[] = data.telemetry
-      .map((item: any) => {
-        const parsed = item.parsed || {};
-        return {
-          deviceId: item.deviceID || AWS_CONFIG.DEVICE_ID,
-          timestamp: item.ts * 1000,
-          ec: parsed.ec_u16 || parsed.eh_u16 || parsed.ec_u8 || 0,
-          ph: (parsed.ph_u8 || 0) / 10,
-          temperature: (parsed.temp_i16 || 0) / 10,
-          o2: (parsed.o2_u16 || 0) / 10,
-          waterLevel: (parsed.waterLevel_u8 || 0) / 10,
-          transpirationRate: parsed.transpiration_u8 || 0,
-          ecDosingFlag: parsed.ecDosing ? 1 : 0,
-          phDosingFlag: parsed.phDosing ? 1 : 0,
-          waterFlowOk: parsed.waterFlowOk ? 1 : 0,
-        };
-      })
-      .filter((r: SensorReading) => !(r.temperature === 0 && r.ph === 0 && r.ec === 0));
-
-    return { success: true, data: readings };
+    console.log(`DynamoDB total: ${allReadings.length} readings for ${Math.round((endTimeSec - startTimeSec) / 3600)}h range`);
+    return { success: true, data: allReadings };
   } catch (error) {
     console.error('Error fetching readings from DynamoDB:', error);
     return {
