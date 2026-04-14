@@ -155,9 +155,9 @@ export function useSensorData(): UseSensorDataResult {
       if (response.success && response.data) {
         const newReading = response.data;
 
-        // Check if this is a genuinely new reading (different timestamp OR different values)
+        // Check if this is a genuinely NEWER reading (must have a later timestamp)
         const prev = latestReadingRef.current;
-        const isNewTimestamp = !prev || prev.timestamp !== newReading.timestamp;
+        const isNewTimestamp = !prev || newReading.timestamp > prev.timestamp;
         const isNewValues = !prev ||
           prev.ec !== newReading.ec ||
           prev.ph !== newReading.ph ||

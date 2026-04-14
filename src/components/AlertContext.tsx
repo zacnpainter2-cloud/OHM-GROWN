@@ -43,6 +43,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [alertHistory, setAlertHistory] = useState<AlertHistoryEntry[]>([]);
   const [lastDataTimestamp, setLastDataTimestamp] = useState<number>(Date.now());
+  const lastCheckedReadingRef = useRef<number>(0);
   const activeAlertsRef = useRef<Map<string, AlertHistoryEntry>>(new Map());
 
   // Load alert history from Supabase
@@ -107,8 +108,11 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   }, [lastDataTimestamp]);
 
   const checkAlerts = useCallback((reading: SensorReading, thresholds: ThresholdValues) => {
-    // Update last data timestamp using browser clock (proves we just received data NOW)
-    setLastDataTimestamp(Date.now());
+    // Only update last data timestamp if this is a genuinely newer reading
+    if (reading.timestamp > lastCheckedReadingRef.current) {
+      lastCheckedReadingRef.current = reading.timestamp;
+      setLastDataTimestamp(Date.now());
+    }
 
     const newAlerts: Alert[] = [];
     const now = reading.timestamp; // Use sensor timestamp, not browser clock
