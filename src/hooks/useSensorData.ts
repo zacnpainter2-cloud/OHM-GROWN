@@ -302,10 +302,60 @@ export function useSensorData(): UseSensorDataResult {
       loadData();
     }, AWS_CONFIG.REFRESH_INTERVAL);
 
-    // Refresh immediately when tab becomes visible again
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadData();
+    // When tab becomes visible again, fetch latest AND backfill any gap
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return;
+
+      // Fetch latest reading immediately
+      loadData();
+
+      // Backfill the gap from DynamoDB if we've been away > 2 minutes
+      const lastTs = latestReadingRef.current?.timestamp;
+      if (!lastTs) return;
+      const gapMs = Date.now() - lastTs;
+      if (gapMs < 2 * 60 * 1000) return; // less than 2 min gap, skip
+
+      try {
+        const startSec = Math.floor(lastTs / 1000) + 1;
+        const endSec = Math.floor(Date.now() / 1000);
+        console.log(`Tab resumed: backfilling ${Math.round(gapMs / 60000)}min gap from DynamoDB...`);
+
+        const result = await fetchReadingsFromDynamo(startSec, endSec);
+        if (!result.success || !result.data || result.data.length === 0) return;
+
+        const valid = result.data.filter(
+          r => !(r.temperature === 0 && r.ph === 0 && r.ec === 0)
+        );
+        if (valid.length === 0) return;
+
+        // Merge into state
+        setReadings(prev => {
+          const existingTs = new Set(prev.map(r => r.timestamp));
+          const newOnly = valid.filter(r => !existingTs.has(r.timestamp));
+          if (newOnly.length === 0) return prev;
+          return [...prev, ...newOnly].sort((a, b) => a.timestamp - b.timestamp);
+        });
+
+        // Save to Supabase in background
+        const rows = valid.map(r => ({
+          recorded_at: new Date(r.timestamp).toISOString(),
+          ec: r.ec, ph: r.ph, temperature: r.temperature,
+          dissolved_oxygen: r.o2, water_level: r.waterLevel,
+          transpiration_rate: r.transpirationRate ?? 0,
+          ec_dosing_flag: r.ecDosingFlag ?? 0,
+          ph_dosing_flag: r.phDosingFlag ?? 0,
+          water_flow_ok: r.waterFlowOk ?? 1,
+          network_status: "online",
+        }));
+        for (let i = 0; i < rows.length; i += 500) {
+          supabase
+            .from("measurements")
+            .upsert(rows.slice(i, i + 500), { onConflict: 'recorded_at', ignoreDuplicates: true })
+            .then(({ error }) => { if (error) console.warn("Gap backfill upsert error:", error); });
+        }
+        console.log(`Tab resumed: backfilled ${valid.length} readings`);
+      } catch (err) {
+        console.error("Tab resume backfill failed:", err);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
