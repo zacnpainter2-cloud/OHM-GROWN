@@ -252,7 +252,7 @@ export function CorrelationPage() {
     return "text-gray-900 dark:text-gray-100";
   };
 
-  const MAX_CHART_POINTS = 300;
+  const MAX_CHART_POINTS = 1500;
 
   // Scatter plot data
   const scatterData = useMemo(() => {

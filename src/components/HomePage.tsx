@@ -9,7 +9,7 @@ import { useAlerts } from "./AlertContext";
 import { useSharedSensorData } from "./SensorDataContext";
 import { downsample } from "../utils/downsample";
 
-const MAX_CHART_POINTS = 200;
+const MAX_CHART_POINTS = 1500;
 
 export function HomePage() {
   const { tempUnit, waterLevelUnit } = useUnits();

@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import { useThresholds } from "./ThresholdContext";
 import { downsample } from "../utils/downsample";
 
-const MAX_CHART_POINTS = 300;
+const MAX_CHART_POINTS = 1500;
 
 export function WaterLevelPage() {
   const { waterLevelUnit: unit, setWaterLevelUnit } = useUnits();

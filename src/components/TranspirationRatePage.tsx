@@ -7,7 +7,7 @@ import { useState, useMemo } from "react";
 import { StatisticsCard } from "./StatisticsCard";
 import { downsample } from "../utils/downsample";
 
-const MAX_CHART_POINTS = 300;
+const MAX_CHART_POINTS = 1500;
 
 export function TranspirationRatePage() {
   const { readings, latestReading, isLoading } = useSharedSensorData();
