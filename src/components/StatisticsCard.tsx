@@ -28,8 +28,13 @@ export function StatisticsCard({ title, data, unit, color = "teal", decimals = 1
   const max = Math.max(...data);
   const avg = data.reduce((sum, val) => sum + val, 0) / data.length;
   const latest = data[data.length - 1];
-  
-  // Calculate trend (comparing first half to second half of data)
+
+  // Population standard deviation
+  // Formula: σ = sqrt( Σ(xᵢ - μ)² / N )
+  // Reference: NIST/SEMATECH e-Handbook of Statistical Methods
+  // https://www.itl.nist.gov/div898/handbook/prc/section2/prc22.htm
+  const variance = data.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / data.length;
+  const stdDev = Math.sqrt(variance);
   const midpoint = Math.floor(data.length / 2);
   const firstHalfAvg = data.slice(0, midpoint).reduce((sum, val) => sum + val, 0) / midpoint;
   const secondHalfAvg = data.slice(midpoint).reduce((sum, val) => sum + val, 0) / (data.length - midpoint);
@@ -106,6 +111,11 @@ export function StatisticsCard({ title, data, unit, color = "teal", decimals = 1
                 </span>
               </>
             )}
+          </div>
+          <div className="mt-2">
+            <span className="text-xs text-muted-foreground">
+              Std dev: <span className="font-semibold">{formatValue(stdDev)} {unit}</span>
+            </span>
           </div>
         </div>
       </CardContent>

@@ -31,6 +31,17 @@ function initSupabase() {
 }
 
 // ── Payload parsing ──────────────────────────────────────────────
+//
+// Uses Node.js Buffer API to decode the 10-byte LoRaWAN binary payload.
+// Methods used: Buffer.from() (base64/hex decode), readUInt16BE(),
+// readInt16BE(), and bitwise AND for flag extraction.
+//
+// Reference: Node.js Docs — Buffer
+// https://nodejs.org/api/buffer.html
+// Specifically:
+//   buf.readUInt16BE(offset) — https://nodejs.org/api/buffer.html#bufreaduint16beoffset
+//   buf.readInt16BE(offset)  — https://nodejs.org/api/buffer.html#bufreadint16beoffset
+//   Buffer.from(string, encoding) — https://nodejs.org/api/buffer.html#static-method-bufferfromstring-encoding
 
 function parsePayload(buf) {
   if (buf.length !== EXPECTED_LEN) {

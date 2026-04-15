@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "./ui/alert";
 import { Moon, Sun } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
-import tigerPawLogo from "figma:asset/742ba61785bcf78e696e6c5e4cb920988f908f87.png";
+import tigerPawLogo from "../assets/742ba61785bcf78e696e6c5e4cb920988f908f87.png";
 
 export function LoginPage() {
   const [password, setPassword] = useState("");

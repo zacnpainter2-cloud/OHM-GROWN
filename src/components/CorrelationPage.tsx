@@ -126,6 +126,10 @@ export function CorrelationPage() {
   }, [readings, timeRange, primaryDateRange]);
 
   // Calculate Pearson correlation coefficient
+  // Formula: r = Σ((xᵢ - x̄)(yᵢ - ȳ)) / sqrt( Σ(xᵢ - x̄)² · Σ(yᵢ - ȳ)² )
+  // Reference: Wikipedia — Pearson correlation coefficient
+  // https://en.wikipedia.org/wiki/Pearson_correlation_coefficient
+  // Also: Freedman, Pisani, Purves — "Statistics" (4th ed.), W. W. Norton, 2007
   const calculateCorrelation = (values1: number[], values2: number[], lag: number = 0): number => {
     if (values1.length < 2 || values2.length < 2) return 0;
 
