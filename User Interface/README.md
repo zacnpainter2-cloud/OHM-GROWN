@@ -134,7 +134,6 @@ All 46 files in `src/components/ui/` were generated using the **shadcn/ui CLI** 
   - Original repo: https://github.com/sveinn-steinarsson/flot-downsample
   - Academic paper (Sveinn Steinarsson, 2013): https://skemman.is/bitstream/1946/15343/3/SS_MSthesis.pdf
 
-- **Pearson Correlation Coefficient** — Implemented in `src/components/CorrelationPage.tsx` to measure linear relationships between sensor parameters. Formula: r = Σ((xᵢ - x̄)(yᵢ - ȳ)) / sqrt(Σ(xᵢ - x̄)² · Σ(yᵢ - ȳ)²)
   - Wikipedia: https://en.wikipedia.org/wiki/Pearson_correlation_coefficient
   - Freedman, Pisani, Purves — *Statistics* (4th ed.), W. W. Norton, 2007
 
@@ -150,23 +149,6 @@ All 46 files in `src/components/ui/` were generated using the **shadcn/ui CLI** 
 - **Unsplash** — Stock images used in the UI
   - Site: https://unsplash.com
   - License: https://unsplash.com/license
-
----
-
-## Custom Code
-
-The following modules were written specifically for this project:
-
-- **Context Providers** — `AlertContext`, `SensorDataContext`, `ThresholdContext`, `DosingContext`, `AuthContext`, `ThemeContext`, `UnitContext` — custom React Context patterns following https://react.dev/learn/passing-data-deeply-with-context
-- **Page Components** — `Dashboard`, `HomePage`, `ECPage`, `PHPage`, `TemperaturePage`, `O2Page`, `WaterLevelPage`, `WaterFlowPage`, `TranspirationRatePage`, `ThresholdPage`, `AlertHistoryPage`, `DosingHistoryPage`, `CorrelationPage`, `ExportPage`, `UserManualPage`, `LoginPage`
-- **Lambda Functions** — `lambda/supabase-writer/index.js` — IoT event handler that writes sensor data to Supabase, manages alert lifecycle, and detects dosing transitions
-- **Hooks** — `useSensorData.ts` — polls AWS API Gateway every 10 seconds, paginates 180 days of history from Supabase
-- **Utilities** — `formatters.ts` (decimal formatting per sensor type); `downsample.ts` (LTTB algorithm, cited above)
-- **AWS Integration** — `aws-config.ts`, `aws-data-service.ts` — REST calls to API Gateway via native `fetch()`
-- **LoRaWAN Payload Parser** — 10-byte binary protocol decoded using Node.js `Buffer` methods (`readUInt16BE`, `readInt16BE`, bitmask operations)
-  - Node.js Buffer API: https://nodejs.org/api/buffer.html
-  - buf.readUInt16BE: https://nodejs.org/api/buffer.html#bufreaduint16beoffset
-  - buf.readInt16BE: https://nodejs.org/api/buffer.html#bufreadint16beoffset
 
 ---
 
