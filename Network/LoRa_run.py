@@ -1,236 +1,220 @@
-# Lorar_run.py - LoRaWAN Data Transmission Script 
-# Bennett Bucher | ELEC 421 Design | LoRaWAN Data Transmission Script
-# This script initializes a LoRaWAN connection and sends sensor data
-# via confirmed uplink messages using a LoRa module connected to a Raspberry Pi.
-# It encodes sensor readings into a compact binary format before transmission.
-# The script also listens for responses from the LoRaWAN network after each uplink.
+# LoRa_run.py — LoRaWAN Service Entry Point
+# Version 1.0.0
+# Bennett Bucher | ELEC 421 Design
+# ─────────────────────────────────────────────────────────────────────
+# Responsibilities:
+#   1. On startup, configure the RAK3272 and join the LoRaWAN network (OTAA).
+#   2. Every 5 minutes, pull the latest encoded payload from DMS and send
+#      a confirmed uplink.
+#   3. Continuously monitor the serial port for downlink events and forward
+#      decoded payloads to DMS via downlink_queue.
+#   4. Verify network status before every uplink and rejoin if needed.
+#      An uplink_busy flag pauses the downlink listener during transmission
+#      to prevent RX/TX collisions on the shared serial port.
+# ─────────────────────────────────────────────────────────────────────
 
-# Prerequisites:
-# - Python 3.x
-# - pyserial library (install via pip: pip install pyserial)
-# - LoRaWAN module connected to Raspberry Pi via serial interface
-
-# Required Hardware:
-# - Raspberry Pi (any model with GPIO pins)or USB-to-Serial adapter to Terminal 
-# - LoRaWAN gateway module: RAK7289V2 
-# - LoRaWAN RF Module:  RAK3272SiP Breakout Board
-
-import struct
+import json
+import threading
 import time
 import serial
-import binascii
-import argparse
-import threading
 
-# Control printing of AT command output: set to False to suppress prints
-VERBOSE = True
+# ─────────────────────────────────────────────────────────────────────
+# Configuration
+# ─────────────────────────────────────────────────────────────────────
 
-# Constants and Configuration
-SERIAL_PORT = "COM8"     
-BAUD_RATE = 115200
-DEVEUI = "70B3D57ED007545D" # set by manufacturer
-APPEUI = "0000000000000000" # 64 bit unique ID
-APPKEY = "B2579CA4A849B71844D759B0E8DF5D9D" # 32 hex characters (16 bytes)
-TEST_PORT = 2 #FPort for uplink messages
-TX_INTERVAL = 30   # Time between uplinks (seconds) - adjust as needed for testing    
-RX1DL_DELAY= 1 # Delay before RX1 window opens (seconds)
-RX2DL_DELAY = 2 # Delay before RX2 window opens (seconds)
-RX_LISTEN_TIME = 20 # Time to listen for responses after uplink (seconds)
-JOIN_RETRY_DELAY = 10 # Time to wait before retrying join if it fails (seconds)
-JOIN_RETRY_ATTEMPTS = 3 # Number of join attempts before giving up (set to None for infinite retries)
-# Serial Initialization
-ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=2)
+SERIAL_PORT     = "/dev/ttyAMA0"                # UART0 on Raspberry Pi
+BAUD_RATE       = 115200
+DEVEUI          = "70B3D57ED007545D"
+APPEUI          = "0000000000000000"
+APPKEY          = "B2579CA4A849B71844D759B0E8DF5D9D"
+UPLINK_PORT     = 2                             # LoRaWAN FPort for uplinks
+UPLINK_INTERVAL = 60                           # Seconds between uplinks (1 min)
+JOIN_POLL_DELAY = 10                            # Seconds between join-status polls
+JOIN_POLL_MAX   = 12                            # Max polls per join attempt (~2 min window)
+STARTUP_DELAY   = 10                             # Seconds to let DMS threads settle
 
-# Parce Response 
-def parse_response(resp):
+
+
+#Initializing Queue
+downlink_queue_ref = None
+
+def set_downlink_queue(q):
+    global downlink_queue_ref
+    downlink_queue_ref = q
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Serial port and concurrency primitives
+# ─────────────────────────────────────────────────────────────────────
+
+ser          = None
+serial_lock  = threading.Lock()
+uplink_busy  = threading.Event()    # Set during TX; pauses the downlink listener
+
+
+def _open_serial():
+    """Open the serial port with retries. Blocks until the port is available.
+    Called once from lorawan_init() so the port is never opened at import time.
     """
-    Filters out empty lines, keeps OK responses
+    global ser
+    while True:
+        try:
+            ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=2)
+            print(f"[LoRa] Serial port {SERIAL_PORT} opened.")
+            return
+        except serial.SerialException as e:
+            print(f"[LoRa] Serial port not ready ({e}) — retrying in 5s...")
+            time.sleep(5)
+
+# ─────────────────────────────────────────────────────────────────────
+# Serial helpers
+# ─────────────────────────────────────────────────────────────────────
+
+def _parse_lines(raw):
+    """Return non-empty, stripped lines from a raw serial response."""
+    return [line.strip() for line in raw.replace("\r", "").split("\n") if line.strip()]
+
+
+def send_at(command, delay=1.0):
+    """Write an AT command, wait `delay` seconds, and return parsed response lines.
+
+    Any downlink events present in the response are forwarded to DMS
+    before this function returns.
     """
-    lines = resp.replace("\r", "").split("\n")
-    return [line.strip() for line in lines if line.strip()]
-
-# Send AT Command
-def send_at(command, delay=1, print_output=None):
-    ser.write((command + "\r\n").encode())
-    time.sleep(delay)
-
-    raw = ser.read(ser.in_waiting).decode(errors="ignore")
-    lines = parse_response(raw)
-
-    # Determine whether to print output: use explicit arg if provided, else global VERBOSE
-    local_print = VERBOSE if print_output is None else print_output
-    if local_print:
-        print(f">> {command}")
-        for line in lines:
-            print("<<", line)
-
+    if ser is None:
+        print(f"[LoRa] Serial not ready — cannot send: {command}")
+        return []
+    with serial_lock:
+        ser.write((command + "\r\n").encode())
+        time.sleep(delay)
+        raw = ser.read(ser.in_waiting).decode(errors="ignore")
+    lines = _parse_lines(raw)
+    for line in lines:
+        _handle_downlink_line(line)
     return lines
 
-# LoRaWAN Initialization
+# ─────────────────────────────────────────────────────────────────────
+# Network join
+# ─────────────────────────────────────────────────────────────────────
+
+def _is_joined():
+    """Return True if the RAK3272 reports an active network session."""
+    lines = send_at("AT+NJS=?")
+    return any(line.strip() == "AT+NJS=1" for line in lines)
+
+
 def lorawan_init():
-    # Check network join Status
-    resp = send_at("AT+NJS=?") 
-    if any("1" in line for line in resp):
-        joined = True
-        print("Device already joined")
+    """Open the serial port, configure the RAK3272 and join via OTAA.
+
+    Writes all required parameters on first call, then starts the join
+    procedure. Blocks and retries until the join succeeds. Exits
+    immediately if the device is already joined.
+    """
+    _open_serial()
+    if _is_joined():
+        print("[LoRa] Already joined.")
         return
-    
-    send_at("AT+NWM=1")            # 1 = LoRaWAN mode
-    send_at("AT+CLASS=C")          # Class C Device
-    send_at("AT+BAND=5")           # Region 5 = US915
-    send_at("AT+NJM=1")            # Set to OTAA
-    send_at("AT+CFM=1")            # Confirmed uplinks
-    send_at("AT+ADR=1")            # Enable ADR
-    send_at("AT+LPM=1")            # Enable Low Power Mode
-    #send_at("AT+RX1DL="+str(RX1DL_DELAY)) # Set RX1 delay
-    #send_at("AT+RX2DL="+str(RX2DL_DELAY)) # Set RX2 delay
 
-    #Device Identifiers {DEVEUI, APPEUI, APPKEY} 
-    send_at("AT+DEVEUI="+DEVEUI)
-    send_at("AT+APPEUI="+APPEUI)
-    send_at("AT+APPKEY="+APPKEY)
-    
-    # Attempt join until success
-    joined = False
-    while not joined:
-        resp = send_at(f"AT+JOIN=1:0:{JOIN_RETRY_DELAY}:{JOIN_RETRY_ATTEMPTS}", delay=JOIN_RETRY_DELAY + 2)
-        if any("JOINED" in line for line in resp):
-            print("LoRaWAN Join Successful")
-            joined = True
-        elif any("JOIN FAILED" in line for line in resp):
-            print(f"Retrying Join in {JOIN_RETRY_DELAY}s...")
-            time.sleep(JOIN_RETRY_DELAY - 2)
+    # Write LoRaWAN parameters
+    send_at("AT+NWM=1")                     # LoRaWAN network mode
+    send_at("AT+CLASS=C")                   # Class C (always-on RX window)
+    send_at("AT+BAND=5")                    # US915 band
+    send_at("AT+NJM=1")                     # OTAA join mode
+    send_at("AT+CFM=1")                     # Confirmed uplinks
+    send_at("AT+ADR=1")                     # Adaptive data rate
+    send_at("AT+LPM=1")                     # Low power mode
+    send_at("AT+DEVEUI=" + DEVEUI)
+    send_at("AT+APPEUI=" + APPEUI)
+    send_at("AT+APPKEY=" + APPKEY)
 
-def encode_payload(ec, ph, temp, o2, level, trans, flags):
+    # Join loop — keeps trying until the network accepts the device
+    attempt = 0
+    while not _is_joined():
+        attempt += 1
+        print(f"[LoRa] Join attempt {attempt} — starting OTAA procedure...")
+        send_at(f"AT+JOIN=1:0:{JOIN_POLL_DELAY}:{JOIN_POLL_MAX}")
+        for _ in range(JOIN_POLL_MAX):
+            time.sleep(JOIN_POLL_DELAY)
+            if _is_joined():
+                break
+
+    print("[LoRa] Network join successful.")
+
+
+def ensure_joined():
+    """Verify the device is still joined; rejoin silently if the link was lost."""
+    if not _is_joined():
+        print("[LoRa] Connection lost — rejoining...")
+        lorawan_init()
+
+# ─────────────────────────────────────────────────────────────────────
+# Downlink handling
+# ─────────────────────────────────────────────────────────────────────
+
+def _handle_downlink_line(line):
+    """Extract raw hex from a downlink event and forward it to DMS."""
+    if not line.startswith("+EVT:RX_"):
+        return
+
+    parts = line.split(":")
+    if len(parts) < 6:
+        return
+
+    hex_data = parts[-1].strip()
+    if not hex_data:
+        return
+
+    if downlink_queue_ref is not None:
+        downlink_queue_ref.put(hex_data)
+        print(f"[LoRa RX] Downlink forwarded: {hex_data}")
+    else:
+        print(f"[LoRa RX] Downlink received but no queue registered: {hex_data}")
+
+
+def downlink_listener():
+    """Background thread — drains the serial buffer between uplink cycles.
+
+    Reads unsolicited RAK3272 events and forwards any downlinks to DMS.
+    Pauses while uplink_busy is set so the TX/ACK window is never
+    interrupted by a concurrent serial read.
     """
-    Encode sensor data into a LoRaWAN payload
-    ec    : uint16 (in μS/cm, scaled by /10 to fit 0-655,350 μS/cm range)
-    ph    : uint8 (scaled by *10, e.g., 7.1 → 71)
-    temp  : uint16 (scaled by *10, e.g., 26.5°C → 265, range 0-6553.5°C)
-    o2    : uint16 (% saturation scaled by *10, e.g., 95.5% → 955, range 0-100.0%)
-    level : uint8 (water level count)
-    trans : uint8 (transpiration rate)
-    flags : uint8 (alert flags - binary)
-    10 bytes total
+    while True:
+        if ser is None:
+            time.sleep(0.5)
+            continue
+        if not uplink_busy.is_set():
+            with serial_lock:
+                if ser.in_waiting:
+                    raw = ser.read(ser.in_waiting).decode(errors="ignore")
+                    for line in _parse_lines(raw):
+                        _handle_downlink_line(line)
+        time.sleep(0.1)
+
+# ─────────────────────────────────────────────────────────────────────
+# Uplink
+# ─────────────────────────────────────────────────────────────────────
+
+
+def send_uplink(payload_hex, port=UPLINK_PORT):
+    """Verify the network connection and send a confirmed LoRaWAN uplink.
+
+    Sets uplink_busy for the duration of the send so the downlink listener
+    does not contend with the active TX/ACK window.
     """
-    payload = struct.pack(
-        ">HBHHBBB",              # Format: uint16, uint8, uint16, uint16, uint8, uint8, uint8
-        int(ec) & 0xFFFF,        # uint16 - EC in μS/cm 
-        int(ph * 10) & 0xFF,     # uint8 - pH scaled by 10 (7.1 → 71)
-        int(temp * 10) & 0xFFFF, # uint16 - Temperature scaled by 10 (26.5 → 265)
-        int(o2 * 10) & 0xFFFF,   # uint16 - O2 % saturation scaled by 10 (95.5 → 955)
-        int(level) & 0xFF,       # uint8 - Water level count
-        int(trans) & 0xFF,       # uint8 - Transpiration rate
-        int(flags) & 0xFF        # uint8 Total payload size: 10 bytes
-          )
-    return binascii.hexlify(payload).decode().upper()
 
-#Send Uplink Function
-def send_uplink(payload_hex, port=2):
-    cmd = f"AT+SEND={port}:{payload_hex}"
-    send_at(cmd, delay=0.5)
+    if ser is None:
+        print("[LoRa TX] Serial port not ready — skipping uplink.")
+        return
+    ensure_joined()
+    uplink_busy.set()
+    try:
+        resp = send_at(f"AT+SEND={port}:{payload_hex}", delay=2.0)
+        if not any("OK" in line for line in resp):
+            print("[LoRa TX] Warning: module did not return OK for SEND command.")
+    finally:
+        uplink_busy.clear()
 
-def process_serial_events(print_downlink_banner=False):
-    """
-    Read and print any pending serial lines.
-    Returns True if a downlink line was detected.
-    """
-    downlink_received = False
-    if ser.in_waiting > 0:
-        raw = ser.read(ser.in_waiting).decode(errors="ignore")
-        lines = parse_response(raw)
 
-        for line in lines:
-            if VERBOSE:
-                print("<<", line)
-            if "+EVT:RECV" in line:
-                downlink_received = True
-                if print_downlink_banner:
-                    print("\n*** DOWNLINK DATA RECEIVED ***\n")
-
-    return downlink_received
-
-#Listen for Serial Responses
-def listen_for_responses(timeout=5):
-    """
-    Listen for serial responses after uplink (events, confirmations, etc.)
-    Displays responses exactly as they appear on AT command monitor.
-    Highlights downlink messages if received.
-    """
-    start_time = time.time()
-    downlink_received = False
-    
-    while (time.time() - start_time) < timeout:
-        if process_serial_events(print_downlink_banner=not downlink_received):
-            downlink_received = True
-        
-        time.sleep(0.5)
-
-#Main Program 
 if __name__ == "__main__":
-    # Accept a simple --silent flag to suppress AT command prints (keeps return values)
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--silent", action="store_true", help="Suppress printing of AT command output")
-    args, _ = parser.parse_known_args()
-    VERBOSE = not args.silent
+    pass
 
-    print("Starting LoRaWAN Initialization...")
-    lorawan_init()
-    print("LoRaWAN Initialization Complete. Ready to send.")
-    print("\n=== UPLINK TEST MODE ===")
-    print("Uplinks will be sent continuously every", TX_INTERVAL, "seconds")
-    print("Press Enter at any time to stop the test\n")
-    input("Press Enter to start...") # Pause before starting
-    
-    # Flag to control loop
-    stop_flag = threading.Event()
-    
-    # Thread to monitor for Enter key press
-    def wait_for_enter():
-        input()
-        stop_flag.set()
-        print("\n\n=== STOP REQUESTED ===")
-    
-    monitor_thread = threading.Thread(target=wait_for_enter, daemon=True)
-    monitor_thread.start()
-    
-    count = 0
-    while not stop_flag.is_set():
-        count += 1
-        
-        # Static sensor values
-        ec = 1999          # EC value in μS/cm
-        ph = 6.5           # pH value
-        temp = 21.4        # Temperature in Celsius
-        o2 = 92.6          # O2 % saturation
-        level = 10          # Water level height
-        trans = 150        # Transpiration rate
-        flags = 0b00000000 # Alert flags (binary)
-        
-        print(f"\n--- Uplink #{count} ---")
-        print(f"EC={ec} μS/cm, pH={ph}, Temp={temp}°C, O2={o2}%, Level Count={level}, Trans={trans}, Flags=0b{flags:08b}")
-        
-        payload = encode_payload(ec, ph, temp, o2, level, trans, flags)
-        send_uplink(payload, TEST_PORT)
-
-        # Listen for uplink confirmation and downlink messages (5 sec for RX1+RX2 windows)
-        listen_for_responses(timeout=5)
-        
-        # Check signal parameters after uplink
-        send_at("AT+DR=?")    # Check current data rate 
-        send_at("AT+SNR=?")   # Check SNR 
-        send_at("AT+RSSI=?")  # Check RSSI 
-     
-        if not stop_flag.is_set():
-            print(f"\n[Waiting {TX_INTERVAL}s...]\n")
-            # Wait in small chunks: stay responsive to stop signal and listen for downlinks
-            for _ in range(TX_INTERVAL * 2):
-                if stop_flag.is_set():
-                    break
-                process_serial_events(print_downlink_banner=True)
-                time.sleep(0.5)
-    
-    print(f"\nTest completed. Total uplinks sent: {count}")
-    print("Closing serial connection...")
-    ser.close()
-    
