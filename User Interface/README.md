@@ -5,14 +5,6 @@ A real-time monitoring and control dashboard for a hydroponic greenhouse system.
 
 The original UI layout is based on a Figma design: https://www.figma.com/design/8Gr9uJPIccG1KKQlW329bw/Website-Front-Page-Design
 
-## Running the Code
-
-```bash
-npm i          # Install dependencies
-npm run dev    # Start development server
-npm run build  # Production build
-```
-
 ## Architecture
 
 - **Frontend:** React 18 + TypeScript, built with Vite
