@@ -98,9 +98,63 @@ export function AlertProvider({ children }: { children: ReactNode }) {
             },
           ];
         });
+
+        // Track in activeAlertsRef + write to Supabase if not already active
+        if (!activeAlertsRef.current.has("network")) {
+          const historyEntry: AlertHistoryEntry = {
+            id: `history-network-${now}`,
+            type: "network",
+            severity: "critical",
+            message: "No Data Received — Check Network Connection",
+            startTime: now,
+          };
+          activeAlertsRef.current.set("network", historyEntry);
+          setAlertHistory((prev) => [historyEntry, ...prev].slice(0, 10000));
+
+          // Persist to Supabase
+          supabase
+            .from("alert_history")
+            .insert({
+              alert_type: "network",
+              severity: "critical",
+              message: "No Data Received — Check Network Connection",
+              start_time: new Date(now).toISOString(),
+              end_time: null,
+              duration_ms: null,
+            })
+            .then(({ error }) => {
+              if (error) console.error("Failed to insert network alert:", error);
+            });
+        }
       } else {
         // Remove network alert if data is flowing again
         setAlerts((prev) => prev.filter((alert) => alert.type !== "network"));
+
+        // Close network alert in history if it was active
+        const networkEntry = activeAlertsRef.current.get("network");
+        if (networkEntry) {
+          const duration = now - networkEntry.startTime;
+          const endedEntry = { ...networkEntry, endTime: now, duration };
+          activeAlertsRef.current.delete("network");
+          setAlertHistory((prev) => {
+            // Replace the open network entry with the closed one
+            const filtered = prev.filter((e) => e.id !== networkEntry.id);
+            return [endedEntry, ...filtered].slice(0, 10000);
+          });
+
+          // Close in Supabase
+          supabase
+            .from("alert_history")
+            .update({
+              end_time: new Date(now).toISOString(),
+              duration_ms: duration,
+            })
+            .eq("alert_type", "network")
+            .is("end_time", null)
+            .then(({ error }) => {
+              if (error) console.error("Failed to close network alert:", error);
+            });
+        }
       }
     }, 30000); // Check every 30 seconds
 
