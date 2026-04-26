@@ -1,29 +1,94 @@
+# Version 1.0.0
+# This is the main DMS script that runs on the Raspberry Pi. It handles:
+# - Sensor polling and state management
+# - LoRaWAN communication (uplink and downlink)
+# - UDP listener for local updates (e.g. from a mobile app)
+# - CSV logging of sensor data and limits
+
+import sys
+if __name__ == "__main__":
+    sys.modules["DMS"] = sys.modules["__main__"]
+
+from gpiozero import LED, Button
 import csv
 import json
 import threading
 import time
 import socket
+import queue
 from datetime import datetime
 from pathlib import Path
-from bitarray import bitarray
-from bitarray.util import int2ba
+#from bitarray import bitarray
+#from bitarray.util import int2ba
+import sensors
+import LoRa_run
+import os
+import calibration
 
 # ==========================================================
-# Initial User Settings
+# Initialization
 # ==========================================================
 
+#Initializing I2C bus
+try:
+    from smbus2 import SMBus
+except ImportError:
+    from smbus import SMBus
+    
+I2C_BUS = 1
 
-CSV_FILE = Path("/home/frank/Documents/sensor_database.csv")
+
+#Initializing LoRa Downlink Queue
+downlink_queue = queue.Queue()
+LoRa_run.set_downlink_queue(downlink_queue)
+
+
+CSV_FILE = Path("/home/ohm/Documents/sensor_database.csv")
 CSV_FILE.parent.mkdir(parents=True, exist_ok=True)
-INTERVAL_SEC = 60   # user-settable logging interval
+INTERVAL_SEC = 300   # user-settable logging interval
 
-# Default limits
+
+# Initial Default limits
 limits = {
-    "ph_min": 6.9,
-    "ph_max": 7.1,
-    "ec_min": 0.9,
-    "ec_max": 1.1,
+    "ph_min": 0,
+    "ph_max": 7.0,
+    "ec_min": 0,
+    "ec_max": 660,
+    "ec_set": 600,
+    "ph_set": 6.8
 }
+
+def _load_limits_from_csv():
+    """Restore limits from the last row of the CSV if it exists."""
+    if not CSV_FILE.exists():
+        print("[DMS] No CSV found — using default limits.")
+        return
+    try:
+        with open(CSV_FILE, "r") as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            if header is None:
+                return
+            last_row = None
+            for row in reader:
+                last_row = row
+            if last_row is None:
+                print("[DMS] CSV has header only — using default limits.")
+                return
+            # CSV columns: Date(0) Time(1) pH(2) ec(3) Circulation(4)
+            #   pH_pump(5) EC_pump(6) Temperature(7) Water_Level(8)
+            #   pH_min(9) pH_max(10) EC_min(11) EC_max(12) EC_set(13) pH_set(14)
+            limits["ph_min"] = float(last_row[9])
+            limits["ph_max"] = float(last_row[10])
+            limits["ec_min"] = float(last_row[11])
+            limits["ec_max"] = float(last_row[12])
+            limits["ec_set"] = float(last_row[13])
+            limits["ph_set"] = float(last_row[14])
+            print(f"[DMS] Limits restored from CSV: {limits}")
+    except Exception as e:
+        print(f"[DMS] Could not load limits from CSV: {e} — using defaults.")
+
+_load_limits_from_csv()
 
 limits_lock = threading.Lock()
 
@@ -36,22 +101,42 @@ UDP_HOST = "0.0.0.0"
 UDP_PORT = 5001
 
 #Initialize Sensors
+# (flow pin init moved into main() — GPIO may not be ready at import time)
+
 sensor_state = {
-    "ph": 7.0,
-    "ec": 1.0,
-    "water_level": 75.0,
-    "circulation": True,
+    "ph": 0.1,
+    "ec": 0.1,
+    "water_level": 0,
+    "circulation": False,
     "ph_pump": False,
     "ec_pump": False,
-    "temperature": 26.0,
-    "o2": 10.0,
+    "temperature": 0.0,
+    "o2": 0.0,
     "transpiration": 0,
 }
 
 sensor_lock = threading.Lock()
 
+#Backlight Control
+def backlight_off():
+    os.system("pinctrl set 18 op dl")
+    
+#Calibration
+
+ENTRY_HOLD_SECONDS = 3.0
+
+BTN_BACK = calibration.BTN_BACK
+BTN_UP   = calibration.BTN_UP
+
+pause_event = threading.Event()
+pause_event.set()
+
+shutdown_event = threading.Event()
+calibration_lock = threading.Lock()
+
+
 # ==========================================================
-# GPIO (Sort of - Receives individual Sensor values from Sensor Array Unit)
+# GPIO
 # ==========================================================
 
 def read_ph():
@@ -77,11 +162,11 @@ def read_ph_pump_status():
 def read_ec_pump_status():
     with sensor_lock:
         return sensor_state["ec_pump"]
-    
+
 def read_temperature():
     with sensor_lock:
         return sensor_state["temperature"]
-    
+
 def read_o2():
     with sensor_lock:
         return sensor_state["o2"]
@@ -101,91 +186,62 @@ def read_ec_min():
 def read_ec_max():
     with limits_lock:
         return limits["ec_max"]
+        
+def read_ec_set():
+    with limits_lock:
+        return limits["ec_set"]
+        
+def read_ph_set():
+    with limits_lock:
+        return limits["ph_set"]
 
+def set_ec_pump(active: bool):
+    with sensor_lock:
+        sensor_state["ec_pump"] = active
 
+def set_ph_pump(active: bool):
+    with sensor_lock:
+        sensor_state["ph_pump"] = active
+
+def sensor_polling_loop():
+    print("[SENSORS] Polling started")
+
+    while True:
+        pause_event.wait()   # blocks here while calibration is active
+
+        try:
+            with SMBus(sensors.I2C_BUS) as bus:
+                data = sensors.read_all_sensors(bus)
+
+            with sensor_lock:
+                sensor_state["ph"] = data["ph"]
+                sensor_state["ec"] = data["ec"]
+                sensor_state["temperature"] = data["temperature"]
+                sensor_state["water_level"] = data["water_level"]
+                sensor_state["circulation"] = data["circulation"]
+                sensor_state["o2"] = data["o2"]
+
+            print_data = data.copy()
+            print_data.pop("o2", None)
+            print("[SENSORS]", print_data)
+
+        except Exception as e:
+            print("[SENSORS ERROR]", e)
+
+        # Wait ~2 s between polls, but allow calibration to interrupt the wait
+        end_wait = time.time() + 2
+        while time.time() < end_wait:
+            if not pause_event.is_set():
+                break
+            time.sleep(0.1)
+            
 # ==========================================================
 # LoRaWAN interface
 # ==========================================================
 
-def lora_send(payload: dict):
-    print("[LoRa OUT]", json.dumps(payload))
-
-
-def lora_receive():
-
-    """
-    Temporary placeholder until actual lora module is connected. Right now the setpoints are being simulated in the UDP section.
-    ph_min = read_ph_min()
-    ph_max = read_ph_max()
-    ec_min = read_ec_min()
-    ec_max = read_ec_max()
-
-    """
-    time.sleep(30)
-    return None
-
-    """
-    This will be the return statement when the LoRa is integrated.
-        {
-        "ph_min": ph_min,
-        "ph_max": ph_max,
-        "ec_min": ec_min,
-        "ec_max": ec_max,
-    }
-    """
-
-# ==========================================================
-# UDP Listener
-# ==========================================================
-
-def udp_listener_loop():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((UDP_HOST, UDP_PORT))
-
-    print(f"[UDP] Listening on {UDP_HOST}:{UDP_PORT}")
-
-    while True:
-        data, addr = sock.recvfrom(2048)
-
-        try:
-            msg = json.loads(data.decode())
-        except json.JSONDecodeError:
-            print("[UDP] Invalid JSON from", addr)
-            continue
-
-        msg_type = msg.get("type")
-        value = msg.get("value")
-
-        if msg_type is None:
-            continue
-
-        # ----------------------------
-        # Sensor values
-        # ----------------------------
-        with sensor_lock:
-            if msg_type in sensor_state:
-                sensor_state[msg_type] = value
-                print(f"[UDP] {msg_type} = {value}")
-
-        # ----------------------------
-        # Limit updates
-        # ----------------------------
-        with limits_lock:
-            if msg_type in limits:
-                limits[msg_type] = float(value)
-                print(f"[UDP] LIMIT {msg_type} = {limits[msg_type]}")
-            #    ph_min = read_ph_min()
-            #    ph_max = read_ph_max()
-            #    ec_min = read_ec_min()
-            #    ec_max = read_ec_max()
-
-        # ----------------------------
-        # Transpiration count
-        # ----------------------------
-        if msg_type == "transpiration":
-            with sensor_lock:
-                sensor_state["transpiration"] = int(value)
-
+def lora_send(payload_hex):
+    LoRa_run.send_uplink(payload_hex)
+    print("[LoRa TX]", payload_hex)
 
 
 # ==========================================================
@@ -197,23 +253,111 @@ def init_csv():
         with open(CSV_FILE, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow([
-                "Date", "time", "pH", "EC", "circulation",
-                "pH pump", "EC pump", "temperature", "o2", "transpiration",
-                "pH min", "pH max", "EC min", "EC max"
+                "Date", "Time", "pH", "ec", "Circulation",
+                "pH pump", "EC pump", "Temperature", "Water Level",
+                "pH min", "pH max", "EC min", "EC max", "EC Setpoint", "pH Setpoint"
             ])
 
 # ==========================================================
+# Calibration Function
+# ==========================================================
+def calibration_monitor_loop():
+    start = None
+
+    while True:
+        if BTN_BACK.is_pressed and BTN_UP.is_pressed:
+            if start is None:
+                start = time.monotonic()
+
+            if time.monotonic() - start >= ENTRY_HOLD_SECONDS:
+                trigger_calibration()
+                start = None
+
+                # wait for release so it does not immediately retrigger
+                while BTN_BACK.is_pressed or BTN_UP.is_pressed:
+                    time.sleep(0.05)
+        else:
+            start = None
+
+        time.sleep(0.05)
+        
+        
+def trigger_calibration():
+
+
+    if not calibration_lock.acquire(blocking=False):
+        return  # already calibrating
+
+    try:
+        print("[DMS] Pausing system for calibration...")
+        pause_event.clear()
+
+        # give active loops a moment to stop touching hardware
+        time.sleep(0.5)
+
+        calibration.launch_calibration_ui()
+
+        print("[DMS] Calibration finished. Resuming system...")
+    except Exception as e:
+        print(f"[DMS] Calibration error: {e}")
+    finally:
+        pause_event.set()
+        calibration_lock.release()
+        
+# ==========================================================
 # Sampling / logging loop
 # ==========================================================
+
+def clamp(value, min_val, max_val):
+    return max(min_val, min(value, max_val))
+
+
+def build_lora_payload(ec, ph, temperature, o2, water_level,
+                       transpiration_count, ec_pump, ph_pump, circ_pump):
+
+    # Scale values to integer
+    ec16   = clamp(int(round(ec)), 0, 65535)
+    ph8    = clamp(int(round(ph * 10)), 0, 255)
+    temp16 = clamp(int(round(temperature * 10)), 0, 65535)
+    o216   = clamp(int(round(o2 * 10)), 0, 65535)
+    lvl8   = clamp(int(round(water_level)), 0, 255)
+    trans8 = clamp(int(transpiration_count), 0, 255)
+
+    ecd  = 1 if ec_pump else 0
+    phd  = 1 if ph_pump else 0
+    flow = 1 if circ_pump else 0
+
+    bitstream = ""
+    bitstream += format(ec16,   "016b")
+    bitstream += format(ph8,    "08b")
+    bitstream += format(temp16, "016b")
+    bitstream += format(o216,   "016b")
+    bitstream += format(lvl8,   "08b")
+    bitstream += format(trans8, "08b")
+
+    bitstream += str(ecd)
+    bitstream += str(phd)
+    bitstream += str(flow)
+
+    # Pad to full byte
+    padding = (8 - len(bitstream) % 8) % 8
+    bitstream += "0" * padding
+
+    payload_bytes = int(bitstream, 2).to_bytes(len(bitstream) // 8, byteorder='big')
+    payload_hex = payload_bytes.hex().upper()
+
+    return bitstream, payload_hex
+
 
 def sampling_loop():
     global transpiration_count
 
     print("[SAMPLER] Writing CSV row")
-
     init_csv()
 
     while True:
+        pause_event.wait()   # block here while calibration is active
+
         start_time = time.time()
         now = datetime.now()
 
@@ -221,33 +365,24 @@ def sampling_loop():
         ec = read_ec()
         circulation = read_circulation()
         temperature = read_temperature()
+        water_level = read_water_level()
         o2 = read_o2()
 
-        with limits_lock:
-            ph_min = limits["ph_min"]
-            ph_max = limits["ph_max"]
-            ec_min = limits["ec_min"]
-            ec_max = limits["ec_max"]
+        ph_min = read_ph_min()
+        ph_max = read_ph_max()
+        ec_min = read_ec_min()
+        ec_max = read_ec_max()
+        ec_set = read_ec_set()
+        ph_set = read_ph_set()
 
-        # Control logic
-        ph_pump_on = ph < ph_min
-        ec_pump_on = ec < ec_min
-
-        def set_ph_pump(on: bool):
-            with sensor_lock:
-                sensor_state["ph_pump"] = on
-            print(f"[ACTUATOR] pH pump {'ON' if on else 'OFF'}")
-
-        def set_ec_pump(on: bool):
-            with sensor_lock:
-                sensor_state["ec_pump"] = on
-            print(f"[ACTUATOR] EC pump {'ON' if on else 'OFF'}")    
+        # Read actual DCU pump state (set by DCU.control_loop)
+        ph_pump_on = read_ph_pump_status()
+        ec_pump_on = read_ec_pump_status()
 
         # Get transpiration count for this interval
         with sensor_lock:
             interval_transpiration = sensor_state["transpiration"]
             sensor_state["transpiration"] = 0
-
 
         # Log to CSV
         with open(CSV_FILE, "a", newline="") as f:
@@ -261,117 +396,134 @@ def sampling_loop():
                 ph_pump_on,
                 ec_pump_on,
                 temperature,
-                o2,
-                interval_transpiration,
+                water_level,
                 ph_min,
                 ph_max,
                 ec_min,
-                ec_max
+                ec_max,
+                ec_set,
+                ph_set
             ])
 
-        # Prepare LoRa Payload
-
-        def clamp(value, min_val, max_val):
-            return max(min_val, min(value, max_val))
-
-
-        def build_lora_payload(ec, ph, temp, o2, lvl, trans, ecd, phd, flow):
-            """
-            Convert sensor values and pack into a bit-accurate LoRa payload.
-            Final three values are sent as individual bits.
-            """
-            ec8 = clamp(int(round(ec * 100)), 0, 255)
-            ph8 = clamp(int(round(ph * 10)), 0, 255)
-            temp16 = clamp(int(round(temp * 10)), 0, 65535)
-            o28 = clamp(int(round(o2 * 10)), 0, 255)
-            lvl8 = clamp(int(round(lvl * 10)), 0, 255)
-            trans8 = clamp(int(trans), 0, 255)
-
-            ecd = 1 if ecd else 0
-            phd = 1 if phd else 0
-            flow = 1 if flow else 0
-
-            # Build bitstream
-            bits = bitarray(endian="big")
-            bits += int2ba(ec8, length=8)
-            bits += int2ba(ph8, length=8)
-            bits += int2ba(temp16, length=16)
-            bits += int2ba(o28, length=8)
-            bits += int2ba(lvl8, length=8)
-            bits += int2ba(trans8, length=8)
-            bits.append(ecd)
-            bits.append(phd)
-            bits.append(flow)
-
-            # Pad remaining 5 bits
-            bits += bitarray("00000")
-
-            return bits.tobytes()
-
-        # Send LoRa JSON
-
-        payload_bytes = build_lora_payload(
+        # -------- BUILD LORA PAYLOAD (KEEP THIS EXACTLY HERE) --------
+        bitstream, payload_hex = build_lora_payload(
             ec=ec,
             ph=ph,
-            temp=temperature,
+            temperature=temperature,
             o2=o2,
-            lvl=read_water_level(),
-            trans=interval_transpiration,
-            ecd=ec_pump_on,
-            phd=ph_pump_on,
-            flow=circulation
+            water_level=water_level,
+            transpiration_count=interval_transpiration,
+            ec_pump=ec_pump_on,
+            ph_pump=ph_pump_on,
+            circ_pump=circulation
         )
 
-        # Convert bytes to list of uint8 for JSON serialization (old)
-        #payload_uint8 = list(payload_bytes)
-        #payload_compact = "".join(str(b) for b in payload_uint8)
+        
 
-        #lora_send({
-        #    "payload": payload_compact
-        #})
+        lora_send(payload_hex)
 
-        # Convert payload bytes to hex string
-        payload_hex = payload_bytes.hex()
-
-        lora_send({
-            "payload_hex": payload_hex
-        })
-
-
-        # Maintain precise interval timing
+        # Maintain precise interval timing, but allow pause to interrupt sleep
         elapsed = time.time() - start_time
-        time.sleep(max(0, INTERVAL_SEC - elapsed))
+        remaining = max(0, INTERVAL_SEC - elapsed)
 
+        end_sleep = time.time() + remaining
+        while time.time() < end_sleep:
+            if not pause_event.is_set():
+                break
+            time.sleep(0.1)
 # ==========================================================
 # LoRa receive loop (always listening)
 # ==========================================================
 
 def lora_listener_loop():
+    print("[LoRa Rx] Downlink listener started — waiting for messages.")
     while True:
-        msg = lora_receive()
-        if not msg:
+        pause_event.wait()
+
+        try:
+            hex_data = downlink_queue.get(timeout=0.5)
+        except queue.Empty:
             continue
 
-        with limits_lock:
-            for key in ("ph_min", "ph_max", "ec_min", "ec_max"):
-                if key in msg:
-                    limits[key] = float(msg[key])
-                    print(f"[LoRa IN] {key} updated to {limits[key]}")
+        if not pause_event.is_set():
+            continue
+
+        try:
+            print(f"[LoRa Rx] Raw hex received: {hex_data}")
+
+            raw = bytes.fromhex(hex_data)
+
+            # Downlink format (9 bytes, big-endian):
+            #   [ec_max:2][ec_min:2][ec_set:2][ph_max:1][ph_min:1][ph_set:1]
+            #   pH bytes are value * 10 (e.g. 70 = 7.0)
+            if len(raw) < 9:
+                print(f"[LoRa Rx] Downlink too short ({len(raw)} bytes), skipping.")
+                continue
+
+            decoded = {
+                "ec_max": int.from_bytes(raw[0:2], "big"),
+                "ec_min": int.from_bytes(raw[2:4], "big"),
+                "ec_set": int.from_bytes(raw[4:6], "big"),
+                "ph_max": int.from_bytes(raw[6:7], "big") / 10,
+                "ph_min": int.from_bytes(raw[7:8], "big") / 10,
+                "ph_set": int.from_bytes(raw[8:9], "big") / 10,
+            }
+
+            updated = []
+            with limits_lock:
+                for key, val in decoded.items():
+                    limits[key] = float(val)
+                    updated.append(f"{key}={val}")
+
+            print(f"[LoRa Rx] Limits updated: {', '.join(updated)}")
+
+        except ValueError as e:
+            print(f"[LoRa Rx] Could not decode hex '{hex_data}': {e}")
+        except Exception as e:
+            print(f"[LoRa Rx ERROR] Unexpected error: {e}")
 
 # ==========================================================
 # Main
 # ==========================================================
 
 def main():
-    sampler = threading.Thread(target=sampling_loop, daemon=True)
-    lora_rx = threading.Thread(target=lora_listener_loop, daemon=True)
-    udp_rx = threading.Thread(target=udp_listener_loop, daemon=True)
+    import DCU  # imported here to avoid circular import (DCU imports DMS)
 
+    # Init GPIO — retry if pin isn't reeased yet at boot
+    for attempt in range(5):
+        try:
+            sensors.init_flow_pin()
+            break
+        except Exception as e:
+            print(f"[DMS] GPIO init attempt {attempt+1}/5 failed: {e}")
+            time.sleep(2)
+
+    # turning off backlight
+    backlight_off()
+
+    sensors_thread = threading.Thread(target=sensor_polling_loop,        daemon=True)
+    sampler        = threading.Thread(target=sampling_loop,              daemon=True)
+    lora_serial_rx = threading.Thread(target=LoRa_run.downlink_listener, daemon=True)
+    lora_rx        = threading.Thread(target=lora_listener_loop,         daemon=True)
+    lora_join      = threading.Thread(target=LoRa_run.lorawan_init,      daemon=True)
+    dcu = threading.Thread(target=DCU.control_loop, args=(pause_event,), daemon=True)
+    cal_monitor = threading.Thread(target=calibration_monitor_loop, daemon=True)
+    
+    
+    
+    cal_monitor.start()
+    sensors_thread.start()
     sampler.start()
     lora_rx.start()
-    udp_rx.start()
+    lora_join.start()       # opens serial port — must start before downlink listener
+    time.sleep(3)           # allow serial port to open before listener reads it
+    lora_serial_rx.start()
+    dcu.start()
 
     print("System running. Ctrl+C to exit.")
+    
+
+    
     try:
         while True:
             time.sleep(1)
