@@ -1,191 +1,316 @@
 
 ================================================================================
-LoRaWAN Data Transmission System
-OHM-GROWN
-Bennett Bucher | ELEC 421 Design
+OHM-GROWN Scripts
+ELEC 421 Design Project
 ================================================================================
 
-PROJECT OVERVIEW
-----------------
-This project implements a LoRaWAN communication system for transmitting sensor
-data from a Raspberry Pi Zero to a LoRaWAN gateway using the RAK3272SiP module.
-The system includes LED status indicators on the LoRa module for visual feedback
-of network connection and data transmission events.
+OVERVIEW
+--------
+This directory contains the Raspberry Pi side of the OHM-GROWN hydroponics
+demo system. The active software stack is organized around four runtime roles:
 
-HARDWARE REQUIREMENTS
----------------------
-- Raspberry Pi Zero (with GPIO)
-- RAK3272SiP Breakout Board (LoRaWAN RF Module)
-- RAK7289V2 (LoRaWAN Gateway)
-- RAK3272SiP custom carrier Board
-- USB cable for serial communication
+- sensors.py reads the sensor array over I2C and GPIO.
+- DMS.py is the main orchestrator and logger.
+- DCU.py handles automatic nutrient and pH dosing.
+- LoRa_run.py manages LoRaWAN join, uplink, and downlink traffic.
 
-SOFTWARE REQUIREMENTS
----------------------
-- Python 3.x
-- pyserial library (install via: pip install pyserial)
-- Arduino IDE with RAKwireless STM32 Boards support
-- LoRaWAN-RAK3172.h library
+The remaining files are calibration UI code, historical backups, test notes,
+and the Python virtual environment used on the Pi and in local development.
 
-PROJECT FILES
--------------
-1. LoRa_run.py          - Python script for LoRaWAN uplink transmission
-2. [Arduino_LED.ino]    - Arduino firmware for LED status indicators (TBD)
 
-================================================================================
-PYTHON SCRIPT: LoRa_run.py
-================================================================================
-
-DESCRIPTION
+SYSTEM FLOW
 -----------
-Initializes LoRaWAN connection and continuously sends sensor data via confirmed
-uplink messages. Displays AT command communication in real-time.
+1. DMS.py starts the system and launches background threads.
+2. sensors.py polls pH, EC, temperature, water level, and flow state.
+3. DMS.py stores the latest values in shared state and appends CSV log rows.
+4. DMS.py builds the LoRa payload and passes it to LoRa_run.py.
+5. LoRa_run.py sends confirmed uplinks and forwards downlinks back to DMS.py.
+6. DCU.py reads the live values and thresholds from DMS.py, then doses pH or
+   nutrient solution when limits are violated.
+7. calibration.py can temporarily pause the system and open a local
+   framebuffer-based calibration UI for pH and EC probes.
 
-CONFIGURATION
--------------
-Edit the following parameters in LoRa_run.py:
 
-    SERIAL_PORT = "COM8"              # Serial port (Windows: COMx, Pi: /dev/ttyUSB0)
-    BAUD_RATE = 115200                # Serial baud rate
-    DEVEUI = "70B3D57ED007545D"       # Device EUI (set by manufacturer)
-    APPEUI = "0000000000000000"       # Application EUI
-    APPKEY = "B2579CA4A849B71844D759B0E8DF5D9D"  # Application Key
-    TEST_PORT = 2                     # LoRaWAN FPort
-    TX_INTERVAL = 30                  # Seconds between uplinks
-    RX_LISTEN_TIME = 8                # Time to listen for responses
+ACTIVE ENTRY POINT
+------------------
+Run DMS.py for the integrated system. It is the top-level service that starts:
 
-USAGE
------
-1. Connect RAK3272SiP to computer/Pi via USB
-2. Configure LoRaWAN credentials in script
-3. Run the script:
-   
-   python LoRa_run.py
+- sensor polling
+- CSV sampling/logging
+- LoRaWAN join and serial downlink listening
+- dosing control
+- calibration hotkey monitoring
 
-4. Press Enter to start sending uplinks
-5. Press Enter again to stop the test
+The current code is written for Raspberry Pi deployment. Several paths are hard
+coded to Linux locations such as /dev/ttyAMA0 and /home/ohm/Documents.
 
-OUTPUT FORMAT
--------------
-The script displays AT commands and responses exactly as they appear in an
-AT command monitor:
 
-    >> AT+SEND=2:96070090010501       (Command sent)
-    << +EVT:SEND_CONFIRMED_OK          (Response received)
-    << +EVT:RXC:-45:-8:0:0             (Signal info)
+HARDWARE / SOFTWARE ASSUMPTIONS
+-------------------------------
+The codebase assumes the following devices and libraries are available:
 
-PAYLOAD FORMAT
---------------
-8-byte binary payload (big-endian):
-    - EC (uint8)       - Electrical conductivity
-    - pH (uint8)       - pH level
-    - Temp (uint16)    - Temperature
-    - O2 (uint8)       - Oxygen level
-    - Level (uint8)    - Water level
-    - Trans (uint8)    - Transmission status
-    - Flags (uint8)    - Status flags
+- Raspberry Pi with GPIO and I2C enabled
+- Atlas Scientific I2C devices:
+  - RTD sensor at 0x66
+  - EC sensor at 0x64
+  - pH sensor at 0x63
+  - EZO-PMP pH pump at 0x67
+  - EZO-PMP EC pump at 0x68
+- Capacitive water-level boards at 0x77 and 0x78
+- Flow switch on GPIO 16
+- Display/buttons/backlight used by calibration.py
+- RAK3272 LoRa module on /dev/ttyAMA0
 
-================================================================================
-ARDUINO FIRMWARE: [Filename TBD]
-================================================================================
+Common Python dependencies referenced in the code:
 
-DESCRIPTION
------------
-Provides visual feedback using LEDs for LoRaWAN network status and data activity.
-The firmware monitors the LoRaWAN stack and triggers LED indicators based on
-network events.
+- pyserial
+- gpiozero
+- smbus2
+- pillow
+- pigpio (optional for PWM backlight control)
 
-LED BEHAVIOR
-------------
-LED1 (PA6) - Network Connection Status:
-    - Blinking (200ms): Not connected to LoRaWAN network
-    - Solid ON: Successfully joined to network
 
-LED2 (PA5) - Data Activity:
-    - 3 quick blinks (100ms): Uplink transmission completed
-    - 5 slow blinks (200ms): Downlink message received
+TOP-LEVEL FILE GUIDE
+--------------------
 
-INSTALLATION
-------------
-1. Install RAKwireless Arduino BSP:
-   - Add URL to Board Manager: 
-     https://raw.githubusercontent.com/RAKWireless/RAKwireless-Arduino-BSP-Index/main/package_rakwireless_index.json
-   - Install "RAKwireless STM32 Boards"
+1. DMS.py
+   Purpose:
+   Main Data Management System service. This is the intended integrated runtime
+   entry point.
 
-2. Select Board:
-   Tools → Board → RAKwireless STM32 Boards → WisDuo RAK3172 Evaluation Board
+   What it does:
+   - Initializes the LoRa downlink queue.
+   - Restores pH/EC limits from the most recent CSV row.
+   - Maintains shared sensor and pump state under thread locks.
+   - Starts sensor polling, CSV logging, LoRa join/listen, calibration monitor,
+     and dosing control threads.
+   - Builds the LoRa payload from current measurements and pump flags.
+   - Applies threshold updates received by LoRa downlink.
 
-3. Upload firmware to RAK3272SiP
+   Important runtime behavior:
+   - Sensor polling interval is approximately 2 seconds.
+   - CSV/logging interval is 300 seconds.
+   - The CSV path in code is /home/ohm/Documents/sensor_database.csv.
+   - Holding BACK + UP for 3 seconds triggers calibration mode.
 
-CALLBACKS USED
---------------
-- registerJoinCallback()  - Monitors join events
-- registerSendCallback()  - Triggers on uplink completion
-- registerRecvCallback()  - Triggers on downlink reception
+   Important globals/configuration:
+   - I2C_BUS = 1
+   - INTERVAL_SEC = 300
+   - limits dictionary for pH and EC min/max/setpoints
+   - pause_event used to pause threads during calibration
 
-================================================================================
-RASPBERRY PI SETUP (Optional - for deployment)
-================================================================================
 
-SSH ACCESS
-----------
-The Pi is configured for remote SSH over USB ethernet gadget mode:
+2. sensors.py
+   Purpose:
+   Sensor abstraction layer for the Sensor Array Unit.
 
-    Command: ssh bbucher@LoRaPi.local
-    Password: greenhouse
-    Address: 192.168.137.4/24
+   What it reads:
+   - RTD temperature sensor over I2C
+   - EC sensor with temperature compensation
+   - pH sensor with temperature compensation
+   - Two water-level boards combined into 20 sections
+   - Flow switch on GPIO 16
 
-PYTHON VIRTUAL ENVIRONMENT
----------------------------
-1. Create virtual environment:
-   python3 -m venv venv
+   Main exported function:
+   - read_all_sensors(bus)
 
-2. Activate:
-   source venv/bin/activate
+   Return payload from read_all_sensors(bus):
+   - temperature
+   - ec
+   - ph
+   - water_level
+   - circulation
+   - o2 (currently fixed at 0.0 placeholder)
 
-3. Install dependencies:
-   pip install pyserial
+   Notes:
+   - Water level is converted to a percent in 5 percent increments.
+   - The debug main loop prints a full sensor snapshot every 60 seconds.
 
-4. Deactivate:
-   deactivate
 
-LORAWAN CONFIGURATION
+3. DCU.py
+   Purpose:
+   Dosing Control Unit logic used by DMS.py.
+
+   What it does:
+   - Reads live pH, EC, water level, and threshold/setpoint values from DMS.
+   - Prioritizes pH correction before EC correction.
+   - Doses Atlas Scientific EZO-PMP pumps over I2C.
+   - Sets pump-state flags in DMS so they can be logged and transmitted.
+   - Skips dosing when water level is 0.
+
+   Current implementation details:
+   - This file contains a simple threshold/setpoint control loop.
+   - It doses fixed amounts per cycle.
+   - It waits for circulation/mixing after each dose.
+   - It is pause-aware, so DMS can suspend it during calibration.
+
+   Key configuration:
+   - PH_PUMP_ADDR = 0x67
+   - EC_PUMP_ADDR = 0x68
+   - DOSE_PH_ML = 1.0
+   - DOSE_EC_ML = 5.0
+   - DOSE_RATE_ML = 0.5
+   - CIRC_WAIT = 300
+   - POLL_INTERVAL = 300
+
+
+
+
+
+4. LoRa_run.py
+   Purpose:
+   LoRaWAN transport layer for the Raspberry Pi and RAK3272 module.
+
+   What it does:
+   - Opens the UART serial port.
+   - Configures the RAK3272 for LoRaWAN OTAA.
+   - Verifies join state and rejoins if required.
+   - Sends confirmed uplinks.
+   - Continuously monitors serial events for downlinks.
+   - Pushes downlink payloads into a queue consumed by DMS.py.
+
+   Key configuration:
+   - SERIAL_PORT = /dev/ttyAMA0
+   - BAUD_RATE = 115200
+   - UPLINK_PORT = 2
+   - JOIN_POLL_DELAY = 10
+   - JOIN_POLL_MAX = 12
+
+   Downlink behavior:
+   - Expects RAK event lines that begin with +EVT:RX_.
+   - Forwards the final hex field to DMS via a queue.
+
+   Logging note:
+   - Repository notes indicate this module also writes lightweight network logs
+     to lora_network_log.csv with log rotation in some recent iterations.
+
+
+5. calibration.py
+   Purpose:
+   Local calibration user interface for pH and EC probes.
+
+   What it does:
+   - Uses the Pi framebuffer directly for a 320x240 display.
+   - Reads hardware buttons for menu navigation.
+   - Controls the display backlight with pigpio or a gpiozero fallback.
+   - Provides EC and pH calibration flows.
+   - Opens from DMS when the BACK and UP buttons are held together.
+
+   Important entry point:
+   - launch_calibration_ui()
+
+   Important notes:
+   - Uses Linux paths for image assets under /home/ohm.
+   - Talks directly to the pH and EC devices over I2C.
+   - DMS pauses polling and dosing while calibration is active.
+
+
+6. sensor_database.csv
+   Purpose:
+   Main CSV log of sensor values, pump states, and pH/EC threshold settings.
+
+   Columns currently used by DMS.py:
+   - Date
+   - Time
+   - pH
+   - ec
+   - Circulation
+   - pH pump
+   - EC pump
+   - Temperature
+   - Water Level
+   - pH min
+   - pH max
+   - EC min
+   - EC max
+   - EC Setpoint
+   - pH Setpoint
+
+   Important behavior:
+   - DMS.py reads the last row at startup and restores saved limits.
+   - The sample CSV in this directory is useful for format reference, but the
+     live runtime path in DMS.py points to /home/ohm/Documents/sensor_database.csv.
+
+
+
+
+
+RUNTIME THREADS STARTED BY DMS.py
+---------------------------------
+The integrated runtime starts these daemon threads:
+
+- sensor_polling_loop
+- sampling_loop
+- LoRa_run.downlink_listener
+- lora_listener_loop
+- LoRa_run.lorawan_init
+- DCU.control_loop
+- calibration_monitor_loop
+
+
+LORA PAYLOAD FORMAT
+-------------------
+DMS.py currently builds a packed payload with the following fields:
+
+- EC: 16 bits
+- pH x10: 8 bits
+- Temperature x10: 16 bits
+- O2 x10: 16 bits
+- Water level: 8 bits
+- Transpiration count: 8 bits
+- EC pump flag: 1 bit
+- pH pump flag: 1 bit
+- Circulation flag: 1 bit
+- Zero padding to the next byte boundary
+
+Downlinks handled by DMS.py are expected to be 9 bytes long and contain:
+
+- ec_max: 2 bytes
+- ec_min: 2 bytes
+- ec_set: 2 bytes
+- ph_max x10: 1 byte
+- ph_min x10: 1 byte
+- ph_set x10: 1 byte
+
+
+KNOWN PATH / ENVIRONMENT MISMATCHES
+-----------------------------------
+If you run this folder on Windows without adapting paths and hardware access,
+parts of the system will fail because the active code assumes Raspberry Pi
+Linux deployment. In particular:
+
+- LoRa_run.py expects /dev/ttyAMA0
+- DMS.py writes to /home/ohm/Documents/sensor_database.csv
+- calibration.py uses /dev/fb1 and /home/ohm image assets
+- GPIO, I2C, and pigpio dependencies require Pi hardware or mocks
+
+
+RECOMMENDED USAGE
+-----------------
+- Use DMS.py when you want the full integrated greenhouse runtime.
+- Use sensors.py directly only for low-level sensor debugging.
+- Use calibration.py only on the Pi hardware with the display/buttons attached.
+- Treat DCU_PD_loop.py as an alternate controller under development.
+- Use Demo_4_Test_Procedures.txt for end-to-end validation.
+
+
+QUICK START CHECKLIST
 ---------------------
-Network Mode: LoRaWAN (AT+NWM=1)
-Device Class: Class A
-Region: US915 (AT+BAND=5)
-Join Method: OTAA (AT+NJM=1)
-Confirmed Uplinks: Enabled (AT+CFM=1)
-Adaptive Data Rate: Enabled (AT+ADR=1)
+1. Activate the project virtual environment.
+2. Confirm required Python packages are installed.
+3. Confirm I2C, GPIO, serial, and framebuffer hardware are available.
+4. Verify the RAK3272 credentials in LoRa_run.py.
+5. Run DMS.py.
+6. Watch console output for sensor polling, LoRa join, and CSV writes.
 
-================================================================================
-TROUBLESHOOTING
-================================================================================
 
-"No legal application detected" error:
-- Device stuck in bootloader mode
-- Upload any valid Arduino sketch to exit bootloader
-
-Serial port not found:
-- Check USB connection
-- Verify correct COM port in Device Manager (Windows) or ls /dev/tty* (Linux)
-
-Join fails:
-- Verify DEVEUI, APPEUI, APPKEY credentials
-- Check gateway is online and in range
-- Ensure correct region/band setting
-
-No LED activity:
-- Verify LED connections to PA6 and PA5
-- Check Arduino firmware is uploaded correctly
-- Ensure pins are configured as OUTPUT
-
-================================================================================
-NOTES
-================================================================================
-- LoRaWAN Class A devices only receive downlinks after uplink transmission
-- RX windows open automatically at ~1s and ~2s after each uplink
-- Callbacks may not trigger for AT command-initiated events (join callback)
-- Polling api.lorawan.njs.get() is more reliable for join status monitoring
+MAINTENANCE NOTES
+-----------------
+- If you change the CSV column order, update both init_csv() and
+  _load_limits_from_csv() in DMS.py.
+- If you change payload packing in DMS.py, update the UI decoder and test notes.
+- If you switch to the PD controller, DMS.py must import DCU_PD_loop or the
+  logic must be merged into DCU.py.
+- Keep Backups/ separate from active source edits to avoid confusion.
 
 ================================================================================
