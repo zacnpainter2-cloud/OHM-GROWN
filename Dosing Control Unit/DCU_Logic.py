@@ -1,182 +1,152 @@
-#DCU LOGIC
-#USED ChatGPT to convert Code from C to Python
-#Used Franc For help
-#Code will operate both peristaltic metering pumps in order to maintain a range 
+# Zac Painter | ELEC 421 Design
+# ─────────────────────────────────────────────────────────────────────
+# Responsibilities:
+#   - Monitor pH and EC from DMS at a regular interval
+#   - Dose pH up solution (base) when pH drops below ph_min
+#   - Dose nutrient solution when EC drops below ec_min
+#   - pH is always corrected before EC is considered
+#   - Uses Atlas Scientific EZO-PMP I2C peristaltic pump modules
+# ─────────────────────────────────────────────────────────────────────
 
 import time
-import random
-import RPi.GPIO as GPIO
-
-            #=====================================================================================
-            #=========================INITIAL CONDITIONS/DEFAUL VALUES============================
-            #===================================================================================== 
-
-# pH Max Value Set
-# pH Setpoint Set
-# Range that will affect the dosing sequence
-PH_Default_Setpoint = 5.0
-PH_Default_Min = 4.0
-
-# EC Min Value Set
-# EC Setpoint Set
-# Range that will affect the dosing sequence
-EC_Default_Setpoint = 1.0
-EC_Default_Min = 0.9
-
-#PH and EC pump Status bits
-PH_Status=0
-EC_Status=0
-
-def read_ph_min():
-            with limits_lock:
-                 return limits["ph_low_thresh"]
-
-def read_ph_max():
-            with limits_lock:
-                 return limits["ph_up_thresh"]
-
-def read_ec_min():
-            with limits_lock:
-                 return limits["ec_low_thresh"]
-
-def read_ec_max():
-            with limits_lock:
-                 return limits["ec_up_thresh"] 
-def read_ph():
-            with sensor_lock:
-                 return sensor_state["ph"]
-
-def read_ec():
-            with sensor_lock:
-                 return sensor_state["ec"]
+import DMS
 
 try:
     from smbus2 import SMBus
 except ImportError:
     from smbus import SMBus
-I2C_BUS = 1
-EC_Pump_ADDR  = 0x68
-PH_Pump_ADDR  = 0x67
 
-def ph_pump_on(bus):
-    command = "D,*"
-    bus.write_i2c_block_data(PH_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
+# ─────────────────────────────────────────────────────────────────────
+# Configuration
+# ─────────────────────────────────────────────────────────────────────
+
+PH_PUMP_ADDR  = 0x67    # EZO-PMP I2C address — pH up (base) pump
+EC_PUMP_ADDR  = 0x68    # EZO-PMP I2C address — nutrient pump
+
+DOSE_PH_ML    = 1.0     # mL dispensed per pH correction dose
+DOSE_EC_ML    = 5.0     # mL dispensed per EC correction dose
+DOSE_RATE_ML  = 0.5     # mL/min — slow rate for dosing accuracy
+
+CIRC_WAIT     = 300    # Seconds to wait after a dose for solution to circulate
+POLL_INTERVAL = 300    # Seconds between checks when both values are in range
+STARTUP_DELAY = 30      # Seconds to wait at boot for sensors to settle
+
+# ─────────────────────────────────────────────────────────────────────
+# EZO-PMP I2C helpers
+# ─────────────────────────────────────────────────────────────────────
+
+def _send_command(bus, addr, command):
+    """Write an ASCII command string to an EZO-PMP over I2C."""
+    cmd_bytes = [ord(c) for c in command]
+    bus.write_i2c_block_data(addr, cmd_bytes[0], cmd_bytes[1:])
     time.sleep(0.3)
+
+
+def _dose(i2c_bus, addr, volume_ml, rate_ml_min=DOSE_RATE_ML):
+    command = f"D,{volume_ml:.2f},{rate_ml_min:.2f}"
+    with SMBus(i2c_bus) as bus:
+        _send_command(bus, addr, command)
+# ─────────────────────────────────────────────────────────────────────
+# Control loop
+# ─────────────────────────────────────────────────────────────────────
+
+
+
+def control_loop(pause_event):
     
-def ph_pump_off(bus):
-    command = "X"
-    bus.write_i2c_block_data(PH_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
-    time.sleep(0.3)
-            
-def ec_pump_on(bus):
-    command = "D,*"
-    bus.write_i2c_block_data(EC_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
-    time.sleep(0.3)
-def ec_pump_off(bus):
-    command = "X"
-    bus.write_i2c_block_data(EC_Pump_ADDR, cmd_bytes[0], cmd_bytes[1:])
-    time.sleep(0.3)
+    print(f"[DCU] Waiting {STARTUP_DELAY}s for sensors to settle...")
+    time.sleep(STARTUP_DELAY)
+    print("[DCU] Control loop running.")
 
-            #=====================================================================================
-            #================================ PROGRAM STARTING ===================================
-            #================================  CTRL+C TO STOP  ===================================
-            #===================================================================================== 
-
-
-print("Starting program... (Ctrl+C to stop)")
-
-try:
     while True:
+        pause_event.wait()   # block here if calibration is active
 
-        #-------Entering and Displaying the pH and EC measurement values-------#
-        PH_measurement = read_ph() 
-        EC_measurement = read_ec()      
-        
-        if read_ph_max() = 0
-            PH_Setpoint = PH_Defualt_Setpoint
-        else
-            PH_Setpoint = read_ph_max()
-                    
-        if read_ph_min() = 0
-            PH_Min = read_ph_min()
-        else
-            PH_Min = read_ph_min 
+        try:
+            ph      = DMS.read_ph()
+            ec      = DMS.read_ec()
+            wl      = DMS.read_water_level()
+            ph_min  = DMS.read_ph_min()
+            ph_set  = DMS.read_ph_set()
+            ec_min  = DMS.read_ec_min()
+            ec_set  = DMS.read_ec_set()
 
-        if read_ec_max() = 0
-            EC_Setpoint = EC_Defualt_Setpoint
-        else
-            EC_Setpoint = read_ec_max()
+            print(f"[DCU] pH_live={ph:.2f}, ec_live={ec:.1f}, wl_live={wl}, ph_min={ph_min}, ph_set={ph_set}, ec_min={ec_min}, ec_set={ec_set}")
 
-        if read_ec_min() = 0
-            EC_Min = EC_Defualt_MIN
-        else
-            EC_MIN = read_ec_min()
-                
-         #-------pH Range Functions-------#
-        def PH_NOT_at_Setpoint():
-            return PH_measurement < PH_Setpoint
-        def PH_out_of_range():
-            return PH_measurement < PH_Min
-        PH_Below_Setpoint = PH_NOT_at_Setpoint()
-        PH_Above_MAX = PH_out_of_range()
-                
-        #-------EC Range Functions-------#
-        def EC_NOT_at_Setpoint():
-            return EC_measurement < EC_Setpoint
-        def EC_out_of_range():
-            return EC_measurement < EC_Min
-        EC_Below_Setpoint = EC_NOT_at_Setpoint()
-        EC_Below_MIN = EC_out_of_range()
-            
-                
-            #=====================================================================================
-            #================================ LOGIC STARTS =======================================
-            #=====================================================================================   
+            if wl == 0:
+                print("[DCU] Water level is 0 — skipping dosing cycle.")
+                for _ in range(int(POLL_INTERVAL / 0.1)):
+                    if not pause_event.is_set():
+                        break
+                    time.sleep(0.1)
+                continue
 
-        #-------pH is Checked and Dosed(if needed) First-------#
-        #-------Dosed back down to setpoint not to the range-------#
-        if PH_Above_MAX:
-            while (PH_Below_Setpoint):
-                    print(" → PH OUTSIDE RANGE! 'Dosing' for 5 seconds. (PUMP ON)")
-                    ph_pump_on(bus)  # PH Pump ON    
-                    PH_Status=1                              
-                    EC_Status=0                              
-                    time.sleep(2)                   # Dosing for 5 seconds
-                    ph_pump_on(bus)   # PH Pump OFF
-                    PH_Status=0
-                    time.sleep(60)   # Wait before next reading (Circulation Timer)
-                    PH_Below_Setpoint = PH_NOT_at_Setpoint()
-                    
+            # ── Phase 1: correct pH first (triggered by min, dosed to setpoint) ──
+            if ph < ph_min:
+                DMS.set_ph_pump(True)
+                print(f"[DCU] pH {ph:.2f} below min {ph_min:.2f} — starting pH dosing cycle (target {ph_set:.2f}).")
+                while ph < DMS.read_ph_set():
+                    pause_event.wait()
 
+                    try:
+                        _dose(DMS.I2C_BUS, PH_PUMP_ADDR, DOSE_PH_ML)
+                        print(f"[DCU] Dosed {DOSE_PH_ML} mL base. Waiting {CIRC_WAIT}s...")
+                    except Exception as e:
+                        print(f"[DCU ERROR] pH pump failed: {e}")
 
-        #-------EC is Checked Next Dosed(if needed)-------#
-        #-------Dosed back up to setpoint not to the range-------#
-        elif EC_Below_MIN:
-            while (EC_Below_Setpoint):
-                    ec_pump_on(bus)  # EC Pump ON
-                    PH_Status=0                               # =================================================================================
-                    EC_Status=1                               # ======================= Pump Status Bits set & ===================================
-                    print(f"PH Pump Status: {PH_Status:f}")   # =======================    Bits are Printed    =================================== 
-                    print(f"EC Pump Status: {EC_Status:f}")   # ==================================================================================
-                    time.sleep(2)    # Dosing for 5 seconds
-                    ec_pump_off(bus) #EC Pump OFF
-                    EC_Status=0
-                    time.sleep(60)   # Wait before next reading (Circulation Timer)  
-                    EC_Below_Setpoint = EC_NOT_at_Setpoint()
-            
-        #-------If Both Measurements are good, Code will break for a longer amount of time-------#
-        else
-            GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)   # PH Pump OFF
-            GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)   # EC Pump OFF
-            PH_Status=0                              
-            EC_Status=0                              
-            time.sleep(15)   # Wait before next reading (Circulation Timer)
-                         
-except KeyboardInterrupt:
-    print("\nProgram stopped by user.")
+                    end_wait = time.time() + CIRC_WAIT
+                    while time.time() < end_wait:
+                        if not pause_event.is_set():
+                            break
+                        time.sleep(0.1)
 
-finally:
-    GPIO.output(PH_PUMP_ON_PIN, GPIO.LOW)
-    GPIO.output(EC_PUMP_ON_PIN, GPIO.LOW)
-    GPIO.cleanup()
-    print("GPIO cleaned up.")
+                    pause_event.wait()
+                    ph = DMS.read_ph()
+                    print(f"[DCU] pH re-read: {ph:.2f} (setpoint {DMS.read_ph_set():.2f})")
+
+                DMS.set_ph_pump(False)
+                print(f"[DCU] pH reached setpoint.")
+
+            # ── Phase 2: correct EC (triggered by min, dosed to setpoint) ──
+            if ec < ec_min:
+                DMS.set_ec_pump(True)
+                print(f"[DCU] EC {ec:.1f} below min {ec_min:.1f} — starting EC dosing cycle (target {ec_set:.1f}).")
+                while ec < DMS.read_ec_set():
+                    pause_event.wait()
+
+                    try:
+                        _dose(DMS.I2C_BUS, EC_PUMP_ADDR, DOSE_EC_ML)
+                        print(f"[DCU] Dosed {DOSE_EC_ML} mL nutrients. Waiting {CIRC_WAIT}s...")
+                    except Exception as e:
+                        print(f"[DCU ERROR] EC pump failed: {e}")
+
+                    end_wait = time.time() + CIRC_WAIT
+                    while time.time() < end_wait:
+                        if not pause_event.is_set():
+                            break
+                        time.sleep(0.1)
+
+                    pause_event.wait()
+                    ec = DMS.read_ec()
+                    print(f"[DCU] EC re-read: {ec:.1f} (setpoint {DMS.read_ec_set():.1f})")
+
+                DMS.set_ec_pump(False)
+                print(f"[DCU] EC reached setpoint.")
+
+            # ── Idle ──
+            print(f"[DCU] Both values at setpoint — idling {POLL_INTERVAL}s.")
+            end_idle = time.time() + POLL_INTERVAL
+            while time.time() < end_idle:
+                if not pause_event.is_set():
+                    break
+                time.sleep(0.1)
+
+        except Exception as e:
+            print(f"[DCU ERROR] Unhandled exception: {e}")
+            # Safety: clear pump flags on error so they don't get stuck
+            DMS.set_ph_pump(False)
+            DMS.set_ec_pump(False)
+            end_err = time.time() + POLL_INTERVAL
+            while time.time() < end_err:
+                if not pause_event.is_set():
+                    break
+                time.sleep(0.1)
